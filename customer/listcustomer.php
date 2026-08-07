@@ -45,6 +45,7 @@ if ($regFrom !== '')   { $conditions[] = 'DATE(c.created_at) >= ?';   $params[] 
 if ($regTo !== '')     { $conditions[] = 'DATE(c.created_at) <= ?';   $params[] = $regTo; }
 
 $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
+$hasFilters = !empty($conditions);
 
 $sql = "
     SELECT
@@ -79,35 +80,58 @@ ob_start();
   </div>
   <div class="flex flex-wrap gap-2">
     <a href="addcustomer.php" data-spa
-       class="inline-flex items-center gap-2 rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-4 py-2">
+       class="inline-flex items-center gap-2 rounded-full bg-[#173B32] hover:bg-[#173B32]/90 text-white text-sm font-medium px-4 py-2">
       <i class="ti ti-plus"></i> Add Customer
     </a>
-    <a href="export.php?<?= h(http_build_query($_GET)) ?>"
-       class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
-      <i class="ti ti-share"></i> Export CSV
-    </a>
+    <div class="relative inline-block text-left">
+      <button type="button" class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50 action-toggle">
+        <i class="ti ti-filter pointer-events-none"></i> Filter
+      </button>
+      <div class="absolute right-0 top-full mt-2 hidden z-50 w-56 text-left action-dropdown">
+        <div class="bg-white rounded-lg shadow-lg border border-gray-100 py-2 relative z-50 flex flex-col">
+          <label class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+            <input type="checkbox" class="filter-checkbox accent-brand w-4 h-4" value="filter-name" <?= $name !== '' ? 'checked' : '' ?>> Search by Name
+          </label>
+          <label class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+            <input type="checkbox" class="filter-checkbox accent-brand w-4 h-4" value="filter-instagram" <?= $instagram !== '' ? 'checked' : '' ?>> Instagram Username
+          </label>
+          <label class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+            <input type="checkbox" class="filter-checkbox accent-brand w-4 h-4" value="filter-whatsapp" <?= $whatsapp !== '' ? 'checked' : '' ?>> WhatsApp Number
+          </label>
+          <label class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+            <input type="checkbox" class="filter-checkbox accent-brand w-4 h-4" value="filter-country" <?= $country !== '' ? 'checked' : '' ?>> Country
+          </label>
+          <label class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+            <input type="checkbox" class="filter-checkbox accent-brand w-4 h-4" value="filter-regfrom" <?= $regFrom !== '' ? 'checked' : '' ?>> Registered From
+          </label>
+          <label class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+            <input type="checkbox" class="filter-checkbox accent-brand w-4 h-4" value="filter-regto" <?= $regTo !== '' ? 'checked' : '' ?>> Registered To
+          </label>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
 <!-- Filters -->
-<form id="customerFilterForm" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 my-5">
+<form id="customerFilterForm" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 my-5 hidden">
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <div>
+    <div id="filter-name" class="<?= $name !== '' ? '' : 'hidden' ?>">
       <label class="block text-xs font-semibold text-gray-600 mb-1">Search by Name</label>
       <input type="text" name="name" value="<?= h($name) ?>" placeholder="Enter customer name..."
              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
     </div>
-    <div>
+    <div id="filter-instagram" class="<?= $instagram !== '' ? '' : 'hidden' ?>">
       <label class="block text-xs font-semibold text-gray-600 mb-1">Instagram Username</label>
       <input type="text" name="instagram" value="<?= h($instagram) ?>" placeholder="Enter instagram handle..."
              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
     </div>
-    <div>
+    <div id="filter-whatsapp" class="<?= $whatsapp !== '' ? '' : 'hidden' ?>">
       <label class="block text-xs font-semibold text-gray-600 mb-1">WhatsApp Number</label>
       <input type="text" name="whatsapp" value="<?= h($whatsapp) ?>" placeholder="Enter whatsapp number..."
              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
     </div>
-    <div>
+    <div id="filter-country" class="<?= $country !== '' ? '' : 'hidden' ?>">
       <label class="block text-xs font-semibold text-gray-600 mb-1">Country</label>
       <select name="country" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
         <option value="">Select country</option>
@@ -116,12 +140,12 @@ ob_start();
         <?php endforeach; ?>
       </select>
     </div>
-    <div>
+    <div id="filter-regfrom" class="<?= $regFrom !== '' ? '' : 'hidden' ?>">
       <label class="block text-xs font-semibold text-gray-600 mb-1">Registered From</label>
       <input type="date" name="registered_from" value="<?= h($regFrom) ?>"
              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
     </div>
-    <div>
+    <div id="filter-regto" class="<?= $regTo !== '' ? '' : 'hidden' ?>">
       <label class="block text-xs font-semibold text-gray-600 mb-1">Registered To</label>
       <input type="date" name="registered_to" value="<?= h($regTo) ?>"
              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
@@ -132,7 +156,7 @@ ob_start();
         Reset Filters
       </button>
       <button type="submit"
-              class="inline-flex items-center gap-2 rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-4 py-2">
+              class="inline-flex items-center gap-2 rounded-full bg-[#173B32] hover:bg-[#173B32]/90 text-white text-sm font-medium px-4 py-2">
         <i class="ti ti-filter"></i> Apply Filters
       </button>
     </div>
@@ -140,28 +164,27 @@ ob_start();
 </form>
 
 <!-- Table -->
-<div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
-  <table class="w-full text-sm min-w-[900px]">
+<div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+  <table class="w-full text-sm">
     <thead>
       <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-100">
-        <th class="px-5 py-3 font-medium">#</th>
-        <th class="px-5 py-3 font-medium">Profile</th>
-        <th class="px-5 py-3 font-medium">Customer Name</th>
-        <th class="px-5 py-3 font-medium">Instagram</th>
-        <th class="px-5 py-3 font-medium">WhatsApp</th>
-        <th class="px-5 py-3 font-medium">Country</th>
-        <th class="px-5 py-3 font-medium">City</th>
-        <th class="px-5 py-3 font-medium text-right">Orders</th>
-        <th class="px-5 py-3 font-medium text-right">Purchase</th>
-        <th class="px-5 py-3 font-medium text-right">Paid</th>
-        <th class="px-5 py-3 font-medium text-right">Actions</th>
+        <th class="px-4 py-3 font-medium">#</th>
+        <th class="px-4 py-3 font-medium">Profile</th>
+        <th class="px-4 py-3 font-medium">Customer Name</th>
+        <th class="px-4 py-3 font-medium">Instagram</th>
+        <th class="px-4 py-3 font-medium">WhatsApp</th>
+        <th class="px-4 py-3 font-medium">Country</th>
+        <th class="px-4 py-3 font-medium text-right">Orders</th>
+        <th class="px-4 py-3 font-medium text-right">Purchase</th>
+        <th class="px-4 py-3 font-medium text-right">Paid</th>
+        <th class="px-4 py-3 font-medium text-right">Actions</th>
       </tr>
     </thead>
     <tbody class="divide-y divide-gray-100">
       <?php foreach ($customers as $i => $cust): ?>
       <tr>
-        <td class="px-5 py-4 text-gray-400"><?= $i + 1 ?></td>
-        <td class="px-5 py-4">
+        <td class="px-4 py-4 text-gray-400"><?= $i + 1 ?></td>
+        <td class="px-4 py-4">
           <?php if (!empty($cust['photo_path'])): ?>
             <img src="../<?= h($cust['photo_path']) ?>" alt="" class="w-9 h-9 rounded-full object-cover">
           <?php else: ?>
@@ -170,29 +193,41 @@ ob_start();
             </span>
           <?php endif; ?>
         </td>
-        <td class="px-5 py-4 font-medium text-gray-800">
+        <td class="px-4 py-4 font-medium text-gray-800">
           <a href="viewcustomer.php?id=<?= $cust['customer_id'] ?>" data-spa class="hover:text-brand">
             <?= h($cust['full_name'] ?: 'Unnamed') ?>
           </a>
         </td>
-        <td class="px-5 py-4 text-gray-500">@<?= h(ltrim($cust['instagram_handle'] ?? '', '@')) ?></td>
-        <td class="px-5 py-4 text-gray-500"><?= h($cust['whatsapp_number']) ?></td>
-        <td class="px-5 py-4 text-gray-600"><?= h($cust['country']) ?></td>
-        <td class="px-5 py-4 text-gray-600"><?= h($cust['city']) ?></td>
-        <td class="px-5 py-4 text-right text-gray-800"><?= (int) $cust['total_orders'] ?></td>
-        <td class="px-5 py-4 text-right text-gray-800"><?= formatMoney($cust['total_purchase']) ?></td>
-        <td class="px-5 py-4 text-right text-gray-800"><?= formatMoney($cust['total_paid']) ?></td>
-        <td class="px-5 py-4">
-          <div class="flex items-center justify-end gap-3 text-gray-400">
-            <a href="viewcustomer.php?id=<?= $cust['customer_id'] ?>" data-spa title="View" class="hover:text-brand"><i class="ti ti-eye"></i></a>
-            <a href="editcustomer.php?id=<?= $cust['customer_id'] ?>" data-spa title="Edit" class="hover:text-brand"><i class="ti ti-edit"></i></a>
-            <button type="button" data-delete-customer="<?= $cust['customer_id'] ?>" title="Delete" class="hover:text-red-600"><i class="ti ti-trash"></i></button>
+        <td class="px-4 py-4 text-gray-500"><?= h(ltrim($cust['instagram_handle'] ?? '', '@')) ?></td>
+        <td class="px-4 py-4 text-gray-500"><?= h($cust['whatsapp_number']) ?></td>
+        <td class="px-4 py-4 text-gray-600"><?= h($cust['country']) ?></td>
+        <td class="px-4 py-4 text-right text-gray-800"><?= (int) $cust['total_orders'] ?></td>
+        <td class="px-4 py-4 text-right text-gray-800"><?= formatMoney($cust['total_purchase']) ?></td>
+        <td class="px-4 py-4 text-right text-gray-800"><?= formatMoney($cust['total_paid']) ?></td>
+        <td class="px-4 py-4">
+          <div class="relative flex justify-end">
+            <button type="button" class="text-gray-400 hover:text-gray-600 p-1 action-toggle">
+              <i class="ti ti-dots-vertical text-lg pointer-events-none"></i>
+            </button>
+            <div class="absolute -right-2 top-full hidden pt-1 z-50 w-32 text-left action-dropdown">
+              <div class="bg-white rounded-lg shadow-lg border border-gray-100 py-1 relative z-50">
+                <a href="viewcustomer.php?id=<?= $cust['customer_id'] ?>" data-spa class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#173B32]">
+                  <i class="ti ti-eye"></i> View
+                </a>
+                <a href="editcustomer.php?id=<?= $cust['customer_id'] ?>" data-spa class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#173B32]">
+                  <i class="ti ti-edit"></i> Edit
+                </a>
+                <button type="button" data-delete-customer="<?= $cust['customer_id'] ?>" class="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-gray-50">
+                  <i class="ti ti-trash"></i> Delete
+                </button>
+              </div>
+            </div>
           </div>
         </td>
       </tr>
       <?php endforeach; ?>
       <?php if (empty($customers)): ?>
-      <tr><td colspan="11" class="px-5 py-10 text-center text-gray-400">No customers found. Try adjusting your filters, or add your first customer.</td></tr>
+      <tr><td colspan="10" class="px-5 py-10 text-center text-gray-400">No customers found. Try adjusting your filters, or add your first customer.</td></tr>
       <?php endif; ?>
     </tbody>
   </table>

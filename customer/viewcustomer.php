@@ -80,7 +80,7 @@ else:
 
     <div class="flex gap-2 mt-6">
       <a href="editcustomer.php?id=<?= $customer['customer_id'] ?>" data-spa
-         class="flex-1 rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-4 py-2 text-center">Edit</a>
+         class="flex-1 rounded-full bg-[#173B32] hover:bg-[#173B32]/90 text-white text-sm font-medium px-4 py-2 text-center">Edit</a>
       <button type="button" data-delete-customer="<?= $customer['customer_id'] ?>"
               class="flex-1 rounded-full border border-red-200 text-red-600 hover:bg-red-50 text-sm font-medium px-4 py-2">Delete</button>
     </div>

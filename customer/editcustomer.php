@@ -192,7 +192,7 @@ else:
       Cancel
     </a>
     <button type="submit"
-            class="rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-6 py-2.5">
+            class="rounded-full bg-[#173B32] hover:bg-[#173B32]/90 text-white text-sm font-medium px-6 py-2.5">
       Save Changes
     </button>
   </div>

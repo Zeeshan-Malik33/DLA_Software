@@ -72,6 +72,26 @@ function closeMobileSidebar() {
 }
 
 document.addEventListener('click', function (e) {
+  // Dropdown toggles
+  const isToggle = e.target.closest('.action-toggle');
+  
+  // Close all open dropdowns if click is outside
+  document.querySelectorAll('.action-dropdown').forEach(d => {
+    if (!isToggle || isToggle.nextElementSibling !== d) {
+      if (!d.contains(e.target)) {
+        d.classList.add('hidden');
+      }
+    }
+  });
+
+  if (isToggle) {
+    e.preventDefault();
+    const dropdown = isToggle.nextElementSibling;
+    if (dropdown && dropdown.classList.contains('action-dropdown')) {
+      dropdown.classList.toggle('hidden');
+    }
+  }
+
   const link = e.target.closest('[data-spa]');
   if (!link) return;
   e.preventDefault();
@@ -234,18 +254,68 @@ function initFilterForm() {
   if (resetBtn) {
     resetBtn.addEventListener('click', () => navigateTo('listcustomer.php', true));
   }
+
+  // Dynamic filter toggles
+  const checkboxes = document.querySelectorAll('.filter-checkbox');
+  function updateFilters() {
+    let anyVisible = false;
+    checkboxes.forEach(cb => {
+      const fieldDiv = document.getElementById(cb.value);
+      if (!fieldDiv) return;
+      if (cb.checked) {
+        fieldDiv.classList.remove('hidden');
+        anyVisible = true;
+      } else {
+        fieldDiv.classList.add('hidden');
+        const input = fieldDiv.querySelector('input, select');
+        if (input && !cb.hasAttribute('data-initial')) input.value = '';
+      }
+      cb.removeAttribute('data-initial');
+    });
+    
+    if (anyVisible) {
+      form.classList.remove('hidden');
+    } else {
+      form.classList.add('hidden');
+    }
+  }
+
+  if (checkboxes.length > 0) {
+    checkboxes.forEach(cb => {
+      cb.setAttribute('data-initial', '1');
+      cb.addEventListener('change', updateFilters);
+    });
+    updateFilters();
+  }
 }
 
 // ---------------------------------------------------------
 // Delete customer (list + profile page)
 // ---------------------------------------------------------
+let pendingDeleteId = null;
+
 function initDeleteButtons() {
-  document.querySelectorAll('[data-delete-customer]').forEach((btn) => {
-    if (btn.dataset.bound) return;
-    btn.dataset.bound = '1';
-    btn.addEventListener('click', async function () {
-      if (!confirm('Delete this customer? This cannot be undone.')) return;
-      const id = btn.dataset.deleteCustomer;
+  const modal = document.getElementById('customDeleteModal');
+  const cancelBtn = document.getElementById('customDeleteCancel');
+  const confirmBtn = document.getElementById('customDeleteConfirm');
+  const overlay = document.getElementById('customDeleteOverlay');
+
+  if (modal && !modal.dataset.bound) {
+    modal.dataset.bound = '1';
+    
+    function closeModal() {
+      modal.classList.add('hidden');
+      pendingDeleteId = null;
+    }
+    
+    cancelBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', closeModal);
+    
+    confirmBtn.addEventListener('click', async function() {
+      if (!pendingDeleteId) return;
+      const id = pendingDeleteId;
+      closeModal();
+      
       try {
         const res = await fetch('listcustomer.php?action=delete&id=' + id, { method: 'POST' });
         const data = await res.json();
@@ -257,6 +327,15 @@ function initDeleteButtons() {
       } catch (err) {
         alert('Network error. Please try again.');
       }
+    });
+  }
+
+  document.querySelectorAll('[data-delete-customer]').forEach((btn) => {
+    if (btn.dataset.clickBound) return;
+    btn.dataset.clickBound = '1';
+    btn.addEventListener('click', function () {
+      pendingDeleteId = btn.dataset.deleteCustomer;
+      if (modal) modal.classList.remove('hidden');
     });
   });
 }
