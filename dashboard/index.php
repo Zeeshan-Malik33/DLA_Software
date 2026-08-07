@@ -13,8 +13,10 @@ $range = $_GET['range'] ?? '30';
 $rangeDays = ['7' => 7, '30' => 30, '90' => 90][$range] ?? null;
 
 $where = '';
+$whereAlias = '';
 if ($rangeDays !== null) {
     $where = "WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL $rangeDays DAY)";
+    $whereAlias = "WHERE o.order_date >= DATE_SUB(CURDATE(), INTERVAL $rangeDays DAY)";
 }
 
 $stats = $pdo->query("
@@ -32,36 +34,54 @@ $profitMargin = $stats['total_sales'] > 0
     ? round(($stats['total_profit'] / $stats['total_sales']) * 100, 1)
     : 0;
 
+$isDayGrouping = in_array($range, ['7', '30']);
+$dateFormatLabel = $isDayGrouping ? "'%d %b'" : "'%b %Y'";
+$dateFormatKey = $isDayGrouping ? "'%Y-%m-%d'" : "'%Y-%m'";
+
+$chartLimitWhere = $whereAlias;
+if (empty($chartLimitWhere)) {
+    $chartLimitWhere = "WHERE o.order_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)";
+}
+
 $monthly = $pdo->query("
-    SELECT DATE_FORMAT(order_date, '%b') AS month_label,
-           DATE_FORMAT(order_date, '%Y-%m') AS month_key,
-           SUM(total_amount) AS revenue,
-           SUM(cost_of_goods + shipping_cost) AS cost
-    FROM orders
-    WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+    SELECT DATE_FORMAT(o.order_date, $dateFormatLabel) AS month_label,
+           DATE_FORMAT(o.order_date, $dateFormatKey) AS month_key,
+           SUM(o.total_amount) AS revenue,
+           SUM(o.cost_of_goods + o.shipping_cost) AS cost
+    FROM orders o
+    $chartLimitWhere
     GROUP BY month_key, month_label
     ORDER BY month_key ASC
 ")->fetchAll();
 
-$statusRows = $pdo->query("SELECT status, COUNT(*) AS total FROM orders GROUP BY status")->fetchAll();
+$statusWhere = $whereAlias ? str_replace("o.order_date", "order_date", $whereAlias) : '';
+$statusRows = $pdo->query("SELECT status, COUNT(*) AS total FROM orders $statusWhere GROUP BY status")->fetchAll();
 $statusTotal = array_sum(array_column($statusRows, 'total'));
 
 $recentOrders = $pdo->query("
     SELECT o.order_id, c.full_name, c.country, o.total_amount, o.currency, o.status
     FROM orders o JOIN customers c ON c.customer_id = o.customer_id
+    $whereAlias
     ORDER BY o.created_at DESC LIMIT 5
 ")->fetchAll();
 
 $topCustomers = $pdo->query("
     SELECT c.full_name, SUM(o.total_amount) AS total_spent, COUNT(o.order_id) AS order_count
     FROM orders o JOIN customers c ON c.customer_id = o.customer_id
+    $whereAlias
     GROUP BY o.customer_id ORDER BY total_spent DESC LIMIT 3
 ")->fetchAll();
+
+$outstandingWhere = "WHERE o.remaining_balance > 0";
+if ($whereAlias) {
+    $outstandingWhere .= " AND " . ltrim($whereAlias, "WHERE ");
+}
 
 $outstandingOrders = $pdo->query("
     SELECT o.order_id, c.full_name, o.remaining_balance, o.currency
     FROM orders o JOIN customers c ON c.customer_id = o.customer_id
-    WHERE o.remaining_balance > 0 ORDER BY o.remaining_balance DESC LIMIT 3
+    $outstandingWhere
+    ORDER BY o.remaining_balance DESC LIMIT 3
 ")->fetchAll();
 
 ob_start();
