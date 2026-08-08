@@ -72,26 +72,6 @@ function closeMobileSidebar() {
 }
 
 document.addEventListener('click', function (e) {
-  // Dropdown toggles
-  const isToggle = e.target.closest('.action-toggle');
-  
-  // Close all open dropdowns if click is outside
-  document.querySelectorAll('.action-dropdown').forEach(d => {
-    if (!isToggle || isToggle.nextElementSibling !== d) {
-      if (!d.contains(e.target)) {
-        d.classList.add('hidden');
-      }
-    }
-  });
-
-  if (isToggle) {
-    e.preventDefault();
-    const dropdown = isToggle.nextElementSibling;
-    if (dropdown && dropdown.classList.contains('action-dropdown')) {
-      dropdown.classList.toggle('hidden');
-    }
-  }
-
   const link = e.target.closest('[data-spa]');
   if (!link) return;
   e.preventDefault();
@@ -113,6 +93,8 @@ function initPageScripts() {
   initDeleteButtons();
   initDashboardCharts();
   initDashboardRangeForm();
+  initAddOrderForm();
+  initOrderDeleteButtons();
 }
 
 function initDashboardRangeForm() {
@@ -254,68 +236,18 @@ function initFilterForm() {
   if (resetBtn) {
     resetBtn.addEventListener('click', () => navigateTo('listcustomer.php', true));
   }
-
-  // Dynamic filter toggles
-  const checkboxes = document.querySelectorAll('.filter-checkbox');
-  function updateFilters() {
-    let anyVisible = false;
-    checkboxes.forEach(cb => {
-      const fieldDiv = document.getElementById(cb.value);
-      if (!fieldDiv) return;
-      if (cb.checked) {
-        fieldDiv.classList.remove('hidden');
-        anyVisible = true;
-      } else {
-        fieldDiv.classList.add('hidden');
-        const input = fieldDiv.querySelector('input, select');
-        if (input && !cb.hasAttribute('data-initial')) input.value = '';
-      }
-      cb.removeAttribute('data-initial');
-    });
-    
-    if (anyVisible) {
-      form.classList.remove('hidden');
-    } else {
-      form.classList.add('hidden');
-    }
-  }
-
-  if (checkboxes.length > 0) {
-    checkboxes.forEach(cb => {
-      cb.setAttribute('data-initial', '1');
-      cb.addEventListener('change', updateFilters);
-    });
-    updateFilters();
-  }
 }
 
 // ---------------------------------------------------------
 // Delete customer (list + profile page)
 // ---------------------------------------------------------
-let pendingDeleteId = null;
-
 function initDeleteButtons() {
-  const modal = document.getElementById('customDeleteModal');
-  const cancelBtn = document.getElementById('customDeleteCancel');
-  const confirmBtn = document.getElementById('customDeleteConfirm');
-  const overlay = document.getElementById('customDeleteOverlay');
-
-  if (modal && !modal.dataset.bound) {
-    modal.dataset.bound = '1';
-    
-    function closeModal() {
-      modal.classList.add('hidden');
-      pendingDeleteId = null;
-    }
-    
-    cancelBtn.addEventListener('click', closeModal);
-    overlay.addEventListener('click', closeModal);
-    
-    confirmBtn.addEventListener('click', async function() {
-      if (!pendingDeleteId) return;
-      const id = pendingDeleteId;
-      closeModal();
-      
+  document.querySelectorAll('[data-delete-customer]').forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', async function () {
+      if (!confirm('Delete this customer? This cannot be undone.')) return;
+      const id = btn.dataset.deleteCustomer;
       try {
         const res = await fetch('listcustomer.php?action=delete&id=' + id, { method: 'POST' });
         const data = await res.json();
@@ -327,15 +259,6 @@ function initDeleteButtons() {
       } catch (err) {
         alert('Network error. Please try again.');
       }
-    });
-  }
-
-  document.querySelectorAll('[data-delete-customer]').forEach((btn) => {
-    if (btn.dataset.clickBound) return;
-    btn.dataset.clickBound = '1';
-    btn.addEventListener('click', function () {
-      pendingDeleteId = btn.dataset.deleteCustomer;
-      if (modal) modal.classList.remove('hidden');
     });
   });
 }
@@ -394,6 +317,272 @@ function initDashboardCharts() {
       },
     });
   }
+}
+
+// ---------------------------------------------------------
+// Add / Edit Order form — product line items + live totals
+// ---------------------------------------------------------
+function initAddOrderForm() {
+  const form = document.getElementById('addOrderForm');
+  if (!form) return;
+
+  const rowsBody = document.getElementById('productRows');
+  const isEdit = form.dataset.mode === 'edit';
+  let rowSeq = 0;
+
+  function rowTemplate(item) {
+    rowSeq++;
+    const id = 'row' + rowSeq;
+    const name = item?.product_name || '';
+    const sku = item?.sku || '';
+    const qty = item?.quantity || 1;
+    const price = item?.unit_price || 0;
+    const productId = item?.product_id || '';
+
+    const tr = document.createElement('tr');
+    tr.dataset.rowId = id;
+    tr.dataset.productId = productId;
+    tr.innerHTML = `
+      <td class="py-2 pr-2 relative">
+        <input type="text" class="product-name-input w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" placeholder="Search product..." value="${name.replace(/"/g, '&quot;')}" autocomplete="off">
+        <div class="product-suggestions hidden absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"></div>
+      </td>
+      <td class="py-2 pr-2 sku-cell text-gray-500 text-xs">${sku || '---'}</td>
+      <td class="py-2 pr-2 text-center">
+        <input type="number" class="qty-input w-20 rounded-lg border border-gray-300 px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand" value="${qty}" min="1">
+      </td>
+      <td class="py-2 pr-2 text-right">
+        <input type="number" class="price-input w-24 rounded-lg border border-gray-300 px-2 py-2 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand" value="${price}" min="0" step="0.01">
+      </td>
+      <td class="py-2 pr-2 text-right line-total font-medium text-gray-800">PKR 0</td>
+      <td class="py-2 text-right">
+        <button type="button" class="remove-row text-gray-300 hover:text-red-600"><i class="ti ti-x"></i></button>
+      </td>
+    `;
+    return tr;
+  }
+
+  function bindRow(tr) {
+    const nameInput = tr.querySelector('.product-name-input');
+    const skuCell = tr.querySelector('.sku-cell');
+    const qtyInput = tr.querySelector('.qty-input');
+    const priceInput = tr.querySelector('.price-input');
+    const suggestBox = tr.querySelector('.product-suggestions');
+    const removeBtn = tr.querySelector('.remove-row');
+
+    let debounceTimer;
+    nameInput.addEventListener('input', function () {
+      tr.dataset.productId = ''; // typing invalidates the previous selection
+      skuCell.textContent = '---';
+      clearTimeout(debounceTimer);
+      const q = nameInput.value.trim();
+      if (q.length < 2) { suggestBox.classList.add('hidden'); return; }
+      debounceTimer = setTimeout(async () => {
+        try {
+          const res = await fetch('product_search.php?q=' + encodeURIComponent(q));
+          const products = await res.json();
+          if (!products.length) { suggestBox.classList.add('hidden'); return; }
+          suggestBox.innerHTML = products.map(p =>
+            `<button type="button" class="suggestion-item block w-full text-left px-3 py-2 text-sm hover:bg-gray-50" data-id="${p.product_id}" data-sku="${p.sku || ''}" data-price="${p.unit_price}" data-name="${p.name.replace(/"/g, '&quot;')}">
+              <span class="font-medium text-gray-800">${p.name}</span>
+              <span class="text-gray-400 text-xs block">${p.sku || '---'} · PKR ${Number(p.unit_price).toLocaleString()}</span>
+            </button>`
+          ).join('');
+          suggestBox.classList.remove('hidden');
+        } catch (err) { /* silent fail, manual entry still works */ }
+      }, 250);
+    });
+
+    suggestBox.addEventListener('click', function (e) {
+      const item = e.target.closest('.suggestion-item');
+      if (!item) return;
+      nameInput.value = item.dataset.name;
+      skuCell.textContent = item.dataset.sku || '---';
+      priceInput.value = item.dataset.price;
+      tr.dataset.productId = item.dataset.id;
+      suggestBox.classList.add('hidden');
+      recalcTotals();
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!tr.contains(e.target)) suggestBox.classList.add('hidden');
+    });
+
+    [qtyInput, priceInput].forEach(input => input.addEventListener('input', recalcTotals));
+    removeBtn.addEventListener('click', function () {
+      if (rowsBody.children.length <= 1) return; // keep at least one row
+      tr.remove();
+      recalcTotals();
+    });
+  }
+
+  function addRow(item) {
+    const tr = rowTemplate(item);
+    rowsBody.appendChild(tr);
+    bindRow(tr);
+    recalcTotals();
+  }
+
+  function recalcTotals() {
+    let subtotal = 0;
+    rowsBody.querySelectorAll('tr').forEach(tr => {
+      const qty = parseFloat(tr.querySelector('.qty-input').value) || 0;
+      const price = parseFloat(tr.querySelector('.price-input').value) || 0;
+      const lineTotal = qty * price;
+      tr.querySelector('.line-total').textContent = 'PKR ' + lineTotal.toLocaleString();
+      subtotal += lineTotal;
+    });
+    const shipping = parseFloat(document.getElementById('shippingInput').value) || 0;
+    const tax = subtotal * 0.10;
+    const grandTotal = subtotal + tax + shipping;
+
+    document.getElementById('sumSubtotal').textContent = 'PKR ' + subtotal.toLocaleString();
+    document.getElementById('sumTax').textContent = 'PKR ' + tax.toLocaleString();
+    document.getElementById('sumGrandTotal').textContent = 'PKR ' + grandTotal.toLocaleString();
+  }
+
+  // Seed initial rows
+  const initialItems = JSON.parse(rowsBody.dataset.initial || 'null');
+  if (initialItems && initialItems.length) {
+    initialItems.forEach(addRow);
+  } else {
+    addRow(null);
+  }
+
+  document.getElementById('addProductRow').addEventListener('click', () => addRow(null));
+  const shippingInput = document.getElementById('shippingInput');
+  if (shippingInput) shippingInput.addEventListener('input', recalcTotals);
+
+  // --- Quick Add: search existing customers (Add Order only) ---
+  const quickAddToggle = document.getElementById('quickAddToggle');
+  if (quickAddToggle) {
+    const box = document.getElementById('customerSearchBox');
+    const input = document.getElementById('customerSearchInput');
+    const results = document.getElementById('customerSearchResults');
+
+    quickAddToggle.addEventListener('click', () => {
+      box.classList.toggle('hidden');
+      if (!box.classList.contains('hidden')) input.focus();
+    });
+
+    let debounceTimer;
+    input.addEventListener('input', function () {
+      clearTimeout(debounceTimer);
+      const q = input.value.trim();
+      if (q.length < 2) { results.classList.add('hidden'); return; }
+      debounceTimer = setTimeout(async () => {
+        try {
+          const res = await fetch('customer_search.php?q=' + encodeURIComponent(q));
+          const customers = await res.json();
+          if (!customers.length) { results.classList.add('hidden'); return; }
+          results.innerHTML = customers.map(c =>
+            `<button type="button" class="customer-result block w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+               data-id="${c.customer_id}" data-name="${(c.full_name || '').replace(/"/g, '&quot;')}"
+               data-instagram="${c.instagram_handle || ''}" data-whatsapp="${c.whatsapp_number || ''}" data-gender="${c.gender || ''}">
+              <span class="font-medium text-gray-800">${c.full_name || 'Unnamed'}</span>
+              <span class="text-gray-400 text-xs block">${c.whatsapp_number || ''}</span>
+            </button>`
+          ).join('');
+          results.classList.remove('hidden');
+        } catch (err) { /* silent */ }
+      }, 250);
+    });
+
+    results.addEventListener('click', function (e) {
+      const item = e.target.closest('.customer-result');
+      if (!item) return;
+      document.getElementById('customerIdField').value = item.dataset.id;
+      document.getElementById('fullNameField').value = item.dataset.name;
+      document.getElementById('instagramField').value = item.dataset.instagram;
+      document.getElementById('whatsappField').value = item.dataset.whatsapp;
+      if (item.dataset.gender === 'male') document.getElementById('genderMale').checked = true;
+      if (item.dataset.gender === 'female') document.getElementById('genderFemale').checked = true;
+      results.classList.add('hidden');
+      box.classList.add('hidden');
+    });
+  }
+
+  // --- Payment status conditional amount field (Add Order only) ---
+  const paymentRadios = form.querySelectorAll('input[name="payment_status"]');
+  const partialWrap = document.getElementById('partialAmountWrap');
+  if (paymentRadios.length && partialWrap) {
+    paymentRadios.forEach(r => r.addEventListener('change', () => {
+      partialWrap.classList.toggle('hidden', r.form.payment_status.value !== 'partial');
+    }));
+  }
+
+  // --- Submit ---
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    document.querySelectorAll('.field-error').forEach(el => el.classList.add('hidden'));
+    document.getElementById('formGeneralError').classList.add('hidden');
+
+    const items = Array.from(rowsBody.querySelectorAll('tr')).map(tr => ({
+      product_id: tr.dataset.productId || null,
+      product_name: tr.querySelector('.product-name-input').value.trim(),
+      sku: tr.querySelector('.sku-cell').textContent.trim() === '---' ? '' : tr.querySelector('.sku-cell').textContent.trim(),
+      quantity: parseInt(tr.querySelector('.qty-input').value) || 1,
+      unit_price: parseFloat(tr.querySelector('.price-input').value) || 0,
+    })).filter(i => i.product_name !== '');
+
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    const originalLabel = submitBtn.textContent;
+    submitBtn.textContent = 'Saving...';
+
+    const formData = new FormData(form);
+    formData.append('items', JSON.stringify(items));
+
+    try {
+      const res = await fetch(isEdit ? 'editorder.php' : 'addorder.php', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (data.success) {
+        navigateTo(isEdit ? 'vieworder.php?id=' + data.order_id : 'listorder.php', true);
+      } else if (data.errors) {
+        Object.entries(data.errors).forEach(([field, msg]) => {
+          const el = form.querySelector(`.field-error[data-field="${field}"]`);
+          if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+        });
+      } else {
+        const genEl = document.getElementById('formGeneralError');
+        genEl.textContent = data.message || 'Something went wrong. Please try again.';
+        genEl.classList.remove('hidden');
+      }
+    } catch (err) {
+      const genEl = document.getElementById('formGeneralError');
+      genEl.textContent = 'Network error. Please try again.';
+      genEl.classList.remove('hidden');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalLabel;
+    }
+  });
+}
+
+// ---------------------------------------------------------
+// Delete order (list page)
+// ---------------------------------------------------------
+function initOrderDeleteButtons() {
+  document.querySelectorAll('[data-delete-order]').forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', async function () {
+      if (!confirm('Delete this order? This cannot be undone.')) return;
+      const id = btn.dataset.deleteOrder;
+      try {
+        const res = await fetch('deleteorder.php?id=' + id, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          navigateTo('listorder.php', true);
+        } else {
+          alert(data.message || 'Failed to delete this order.');
+        }
+      } catch (err) {
+        alert('Network error. Please try again.');
+      }
+    });
+  });
 }
 
 document.addEventListener('DOMContentLoaded', function () {
