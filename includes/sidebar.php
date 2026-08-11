@@ -18,14 +18,14 @@ function navClass($key, $active) {
 }
 ?>
 <!-- Mobile top bar -->
-<div class="md:hidden bg-[#173B32] flex items-center justify-between px-4 py-3">
+<div class="md:hidden bg-brand flex items-center justify-between px-4 py-3">
   <span class="text-white text-lg font-semibold">Dashboard</span>
   <button id="menuToggle" class="text-white p-1" aria-label="Open menu">
     <i class="ti ti-menu-2 text-2xl"></i>
   </button>
 </div>
 
-<aside id="sidebar" class="hidden md:flex md:flex-col w-full md:w-64 bg-[#173B32] px-4 py-6 md:min-h-screen md:sticky md:top-0 md:h-screen">
+<aside id="sidebar" class="hidden md:flex md:flex-col w-full md:w-64 bg-brand px-4 py-6 md:min-h-screen md:sticky md:top-0 md:h-screen">
   <h1 class="hidden md:block text-white text-2xl font-semibold px-2 mb-6">Dashboard</h1>
 
   <nav id="sidebarNav" class="space-y-2">
@@ -44,13 +44,16 @@ function navClass($key, $active) {
     <a href="../reports/monthly_report.php" data-spa data-page="reports" class="<?= navClass('reports', $activePage) ?>">
       <i class="ti ti-file-report"></i> Report
     </a>
-    <a href="#" data-page="settings" class="<?= navClass('settings', $activePage) ?>">
+    <a href="../expenses/listexpense.php" data-spa data-page="expenses" class="<?= navClass('expenses', $activePage) ?>">
+      <i class="ti ti-wallet"></i> Personal Expenses
+    </a>
+    <a href="../settings/index.php" data-spa data-page="settings" class="<?= navClass('settings', $activePage) ?>">
       <i class="ti ti-settings"></i> Setting
     </a>
   </nav>
 
   <!-- Business summary — computed once per full page load, stays put during in-app navigation -->
-  <!-- <div class="mt-6 bg-black/20 rounded-xl p-4">
+  <div class="mt-6 bg-black/20 rounded-xl p-4">
     <p class="text-xs font-semibold tracking-wide text-white/60 uppercase mb-3">Business Summary</p>
     <ul class="space-y-3">
       <li class="flex items-center gap-3">
@@ -82,7 +85,7 @@ function navClass($key, $active) {
         </div>
       </li>
     </ul>
-  </div> -->
+  </div>
 
   <div class="mt-auto pt-6 hidden md:block">
     <a href="../auth/logout.php" class="flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white/70 hover:text-white hover:bg-white/10">

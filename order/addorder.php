@@ -2,6 +2,7 @@
 require '../config/database.php';
 require '../includes/auth_check.php';
 require '../includes/functions.php';
+require '../includes/locations.php';
 
 $activePage = 'orders';
 $pageTitle  = 'Add Order';
@@ -15,8 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $customerId   = (int) ($_POST['customer_id'] ?? 0);
     $fullName     = trim($_POST['full_name'] ?? '');
     $instagram    = trim($_POST['instagram_handle'] ?? '');
-    $whatsapp     = trim($_POST['whatsapp_number'] ?? '');
-    $gender       = trim($_POST['gender'] ?? '');
+    $country      = trim($_POST['country'] ?? '');
+    $city         = trim($_POST['city'] ?? '');
     $orderDate    = trim($_POST['order_date'] ?? '');
     $expectedDate = trim($_POST['expected_delivery_date'] ?? '') ?: null;
     $shippingCost = (float) ($_POST['shipping_cost'] ?? 0);
@@ -26,7 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $errors = [];
     if ($fullName === '' && $customerId === 0) $errors['full_name'] = 'Full name is required.';
-    if ($whatsapp === '')  $errors['whatsapp_number'] = 'WhatsApp number is required.';
+    if ($instagram === '' && $customerId === 0) $errors['instagram_handle'] = 'Instagram username is required.';
+    if ($country === '')   $errors['country'] = 'Country is required.';
     if ($orderDate === '') $errors['order_date'] = 'Order date is required.';
     if (empty($items))     $errors['items'] = 'Add at least one product to the order.';
 
@@ -40,15 +42,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // --- Find or create the customer ---
         if ($customerId === 0) {
-            $stmt = $pdo->prepare('SELECT customer_id FROM customers WHERE whatsapp_number = ? LIMIT 1');
-            $stmt->execute([$whatsapp]);
+            $stmt = $pdo->prepare('SELECT customer_id FROM customers WHERE instagram_handle = ? AND instagram_handle != "" LIMIT 1');
+            $stmt->execute([$instagram]);
             $existing = $stmt->fetch();
 
             if ($existing) {
                 $customerId = $existing['customer_id'];
             } else {
-                $stmt = $pdo->prepare('INSERT INTO customers (full_name, instagram_handle, whatsapp_number, gender) VALUES (?, ?, ?, ?)');
-                $stmt->execute([$fullName, $instagram, $whatsapp, $gender ?: null]);
+                $stmt = $pdo->prepare('INSERT INTO customers (full_name, instagram_handle, country, city) VALUES (?, ?, ?, ?)');
+                $stmt->execute([$fullName, $instagram, $country, $city]);
                 $customerId = $pdo->lastInsertId();
             }
         }
@@ -99,8 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        $tax = round($subtotal * 0.10, 2);
-        $grandTotal = round($subtotal + $tax + $shippingCost, 2);
+        $grandTotal = round($subtotal + $shippingCost, 2);
 
         $amountPaid = match ($paymentStatus) {
             'paid'    => $grandTotal,
@@ -186,7 +187,7 @@ ob_start();
 
       <!-- Existing-customer search, hidden until "Quick Add" is clicked -->
       <div id="customerSearchBox" class="hidden relative mb-5">
-        <input type="text" id="customerSearchInput" placeholder="Search existing customers by name or WhatsApp..."
+        <input type="text" id="customerSearchInput" placeholder="Search existing customers by name or Instagram..."
                class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
         <div id="customerSearchResults" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto"></div>
       </div>
@@ -199,26 +200,28 @@ ob_start();
           <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="full_name"></p>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Instagram Username</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Instagram Username <span class="text-red-500">*</span></label>
           <input type="text" name="instagram_handle" id="instagramField" placeholder="Enter instagram handle..."
                  class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
+          <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="instagram_handle"></p>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">WhatsApp Number <span class="text-red-500">*</span></label>
-          <input type="text" name="whatsapp_number" id="whatsappField" placeholder="Enter whatsapp number..."
-                 class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
-          <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="whatsapp_number"></p>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Country <span class="text-red-500">*</span></label>
+          <select name="country" id="countrySelect"
+                  class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
+            <option value="">Country</option>
+            <?php foreach ($COUNTRIES as $c): ?>
+              <option value="<?= h($c) ?>"><?= h($c) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="country"></p>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Gender</label>
-          <div class="flex items-center gap-6 pt-1">
-            <label class="flex items-center gap-2 text-sm text-gray-700">
-              <input type="radio" name="gender" id="genderMale" value="male" class="accent-brand"> Male
-            </label>
-            <label class="flex items-center gap-2 text-sm text-gray-700">
-              <input type="radio" name="gender" id="genderFemale" value="female" class="accent-brand"> Female
-            </label>
-          </div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+          <select name="city" id="citySelect"
+                  class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
+            <option value="">City</option>
+          </select>
         </div>
       </div>
     </div>
@@ -277,9 +280,6 @@ ob_start();
         <div class="flex justify-between text-gray-600">
           <span>Subtotal</span> <span id="sumSubtotal">PKR 0</span>
         </div>
-        <div class="flex justify-between text-gray-600">
-          <span>Tax (10%)</span> <span id="sumTax">PKR 0</span>
-        </div>
         <div class="flex justify-between items-center text-gray-600">
           <span>Shipping</span>
           <input type="number" name="shipping_cost" id="shippingInput" value="0" min="0" step="0.01"
@@ -291,13 +291,6 @@ ob_start();
         <span id="sumGrandTotal" class="font-bold text-brand text-lg">PKR 0</span>
       </div>
     </div>
-
-    <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-5 py-3">
-      <i class="ti ti-circle-check"></i> Create Order
-    </button>
-    <a href="listorder.php" data-spa class="block text-center rounded-full border border-gray-300 bg-white text-sm font-medium px-5 py-3 text-gray-700 hover:bg-gray-50">
-      Cancel
-    </a>
 
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
       <h3 class="font-semibold text-gray-900 mb-3">Payment Status</h3>
@@ -317,6 +310,13 @@ ob_start();
         </label>
       </div>
     </div>
+
+    <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-5 py-3">
+      <i class="ti ti-circle-check"></i> Create Order
+    </button>
+    <a href="listorder.php" data-spa class="block text-center rounded-full border border-gray-300 bg-white text-sm font-medium px-5 py-3 text-gray-700 hover:bg-gray-50">
+      Cancel
+    </a>
 
   </div>
 
