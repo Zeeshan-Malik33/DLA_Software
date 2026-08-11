@@ -52,7 +52,7 @@ function navClass($key, $active) {
     </a>
   </nav>
 
-  <!-- Business summary — computed once per full page load, stays put during in-app navigation -->
+  <!-- Business summary — computed once per full page load, stays put during in-app navigation
   <div class="mt-6 bg-black/20 rounded-xl p-4">
     <p class="text-xs font-semibold tracking-wide text-white/60 uppercase mb-3">Business Summary</p>
     <ul class="space-y-3">
@@ -85,7 +85,7 @@ function navClass($key, $active) {
         </div>
       </li>
     </ul>
-  </div>
+  </div> -->
 
   <div class="mt-auto pt-6 hidden md:block">
     <a href="../auth/logout.php" class="flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white/70 hover:text-white hover:bg-white/10">

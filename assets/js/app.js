@@ -57,6 +57,7 @@ function setActiveSidebarLink(url) {
   else if (url.includes('/payment/')) page = 'payments';
   else if (url.includes('/reports/')) page = 'reports';
   else if (url.includes('/settings/')) page = 'settings';
+  else if (url.includes('/expenses/')) page = 'expenses';
 
   document.querySelectorAll('#sidebarNav a[data-page]').forEach((a) => {
     const isActive = a.dataset.page === page;
@@ -106,6 +107,11 @@ function initPageScripts() {
   initProfileForm();
   initPreferencesForm();
   initPasswordModal();
+  initExpenseForm();
+  initExpenseFilterForm();
+  initExpenseDeleteButtons();
+  initExpensePresets();
+  initExportExpenseToggle();
 }
 
 function initDashboardRangeForm() {
@@ -1018,6 +1024,152 @@ function initPasswordModal() {
       submitBtn.textContent = originalLabel;
     }
   });
+}
+
+// ---------------------------------------------------------
+// Add / Edit Expense form
+// ---------------------------------------------------------
+function initExpenseForm() {
+  const form = document.getElementById('expenseForm');
+  if (!form) return;
+
+  const isEdit = form.dataset.mode === 'edit';
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    document.querySelectorAll('.field-error').forEach(el => el.classList.add('hidden'));
+    document.getElementById('formGeneralError').classList.add('hidden');
+
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    const originalLabel = submitBtn.textContent;
+    submitBtn.textContent = 'Saving...';
+
+    try {
+      const res = await fetch(isEdit ? 'editexpense.php' : 'addexpense.php', { method: 'POST', body: new FormData(form) });
+      const data = await res.json();
+
+      if (data.success) {
+        navigateTo('listexpense.php', true);
+      } else if (data.errors) {
+        Object.entries(data.errors).forEach(([field, msg]) => {
+          const el = form.querySelector(`.field-error[data-field="${field}"]`);
+          if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+        });
+      } else {
+        const genEl = document.getElementById('formGeneralError');
+        genEl.textContent = data.message || 'Something went wrong. Please try again.';
+        genEl.classList.remove('hidden');
+      }
+    } catch (err) {
+      const genEl = document.getElementById('formGeneralError');
+      genEl.textContent = 'Network error. Please try again.';
+      genEl.classList.remove('hidden');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalLabel;
+    }
+  });
+}
+
+// ---------------------------------------------------------
+// Expense list filters
+// ---------------------------------------------------------
+function initExpenseFilterForm() {
+  const form = document.getElementById('expenseFilterForm');
+  if (!form) return;
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const params = new URLSearchParams(new FormData(form)).toString();
+    navigateTo('listexpense.php' + (params ? '?' + params : ''), true);
+  });
+
+  const resetBtn = document.getElementById('resetFiltersBtn');
+  if (resetBtn) resetBtn.addEventListener('click', () => navigateTo('listexpense.php', true));
+}
+
+// ---------------------------------------------------------
+// Quick date-range presets (Today / This Week / This Month / This Year / All Time)
+// ---------------------------------------------------------
+function initExpensePresets() {
+  document.querySelectorAll('[data-expense-preset]').forEach((btn) => {
+    btn.addEventListener('click', function () {
+      const today = new Date();
+      const iso = (d) => d.toISOString().slice(0, 10);
+      let from = '', to = '';
+
+      switch (btn.dataset.expensePreset) {
+        case 'today':
+          from = to = iso(today);
+          break;
+        case 'week': {
+          const start = new Date(today);
+          start.setDate(today.getDate() - today.getDay());
+          from = iso(start); to = iso(today);
+          break;
+        }
+        case 'month':
+          from = iso(new Date(today.getFullYear(), today.getMonth(), 1));
+          to = iso(today);
+          break;
+        case 'year':
+          from = iso(new Date(today.getFullYear(), 0, 1));
+          to = iso(today);
+          break;
+        case 'all':
+        default:
+          from = ''; to = '';
+      }
+
+      const params = new URLSearchParams();
+      if (from) params.set('date_from', from);
+      if (to) params.set('date_to', to);
+      navigateTo('listexpense.php' + (params.toString() ? '?' + params.toString() : ''), true);
+    });
+  });
+}
+
+// ---------------------------------------------------------
+// Delete expense
+// ---------------------------------------------------------
+function initExpenseDeleteButtons() {
+  document.querySelectorAll('[data-delete-expense]').forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', async function () {
+      if (!confirm('Delete this expense? This cannot be undone.')) return;
+      const id = btn.dataset.deleteExpense;
+      try {
+        const res = await fetch('listexpense.php?action=delete&id=' + id, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          navigateTo('listexpense.php', true);
+        } else {
+          alert(data.message || 'Failed to delete this expense.');
+        }
+      } catch (err) {
+        alert('Network error. Please try again.');
+      }
+    });
+  });
+}
+
+// ---------------------------------------------------------
+// Export dropdown (PDF / Excel)
+// ---------------------------------------------------------
+function initExportExpenseToggle() {
+  const toggle = document.getElementById('exportExpenseToggle');
+  const menu = document.getElementById('exportExpenseMenu');
+  if (!toggle || !menu) return;
+  if (toggle.dataset.bound) return;
+  toggle.dataset.bound = '1';
+
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.classList.toggle('hidden');
+  });
+  document.addEventListener('click', () => menu.classList.add('hidden'));
 }
 
 document.addEventListener('DOMContentLoaded', function () {

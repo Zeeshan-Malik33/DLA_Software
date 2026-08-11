@@ -49,6 +49,18 @@ function timeAgo($datetime) {
     return 'just now';
 }
 
+// Tailwind badge classes per expense category
+function expenseCategoryColor($category) {
+    $palette = [
+        'Rent' => 'bg-blue-50 text-blue-700', 'Utilities' => 'bg-amber-50 text-amber-700',
+        'Food' => 'bg-emerald-50 text-emerald-700', 'Transport' => 'bg-purple-50 text-purple-700',
+        'Shopping' => 'bg-pink-50 text-pink-700', 'Health' => 'bg-red-50 text-red-700',
+        'Entertainment' => 'bg-cyan-50 text-cyan-700', 'Supplies' => 'bg-indigo-50 text-indigo-700',
+        'Other' => 'bg-gray-100 text-gray-600',
+    ];
+    return $palette[$category] ?? 'bg-gray-100 text-gray-600';
+}
+
 // Tailwind color classes per order status (used for badges/legend dots)
 function statusColor($status) {
     return match ($status) {
