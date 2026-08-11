@@ -70,8 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $cleanItems[] = compact('productId', 'name', 'sku', 'qty', 'unitPrice');
         }
 
-        $tax = round($subtotal * 0.10, 2);
-        $grandTotal = round($subtotal + $tax + $shippingCost, 2);
+        $grandTotal = round($subtotal + $shippingCost, 2);
         $productDescription = implode(', ', array_column($cleanItems, 'name'));
 
         // Was the status just changed? log it.
@@ -227,7 +226,6 @@ else:
       <h3 class="font-semibold text-gray-900 mb-4">Order Summary</h3>
       <div class="space-y-3 text-sm">
         <div class="flex justify-between text-gray-600"><span>Subtotal</span> <span id="sumSubtotal">PKR 0</span></div>
-        <div class="flex justify-between text-gray-600"><span>Tax (10%)</span> <span id="sumTax">PKR 0</span></div>
         <div class="flex justify-between items-center text-gray-600">
           <span>Shipping</span>
           <input type="number" name="shipping_cost" id="shippingInput" value="<?= h($order['shipping_cost']) ?>" min="0" step="0.01"

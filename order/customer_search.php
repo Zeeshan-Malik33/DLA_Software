@@ -11,11 +11,11 @@ if ($q === '') {
 }
 
 $stmt = $pdo->prepare('
-    SELECT customer_id, full_name, instagram_handle, whatsapp_number, gender
+    SELECT customer_id, full_name, instagram_handle, country, city
     FROM customers
-    WHERE full_name LIKE ? OR whatsapp_number LIKE ? OR instagram_handle LIKE ?
+    WHERE full_name LIKE ? OR instagram_handle LIKE ?
     ORDER BY full_name ASC
     LIMIT 8
 ');
-$stmt->execute(["%$q%", "%$q%", "%$q%"]);
+$stmt->execute(["%$q%", "%$q%"]);
 echo json_encode($stmt->fetchAll());

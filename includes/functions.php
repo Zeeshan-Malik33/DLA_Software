@@ -31,6 +31,25 @@ function avatarColor($name) {
     return $palette[$index];
 }
 
+// Display-friendly order code, e.g. order_id 345 -> #ORD-10345
+function orderCode($id) {
+    return '#ORD-' . (10000 + (int) $id);
+}
+
+// Human-readable relative time, e.g. "3 months ago"
+function timeAgo($datetime) {
+    if (!$datetime) return 'never';
+    $diff = time() - strtotime($datetime);
+    if ($diff < 60) return 'just now';
+    $units = [31536000 => 'year', 2592000 => 'month', 86400 => 'day', 3600 => 'hour', 60 => 'minute'];
+    foreach ($units as $seconds => $label) {
+        $count = floor($diff / $seconds);
+        if ($count >= 1) return $count . ' ' . $label . ($count > 1 ? 's' : '') . ' ago';
+    }
+    return 'just now';
+}
+
+// Tailwind color classes per order status (used for badges/legend dots)
 function statusColor($status) {
     return match ($status) {
         'delivered'  => ['bg' => 'bg-emerald-500', 'text' => 'text-emerald-700', 'soft' => 'bg-emerald-50'],
