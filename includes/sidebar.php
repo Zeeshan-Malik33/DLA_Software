@@ -3,6 +3,9 @@
 // by the including page before this file is required.
 $activePage = $activePage ?? '';
 
+$logoStmt = $pdo->query("SELECT photo_path FROM users WHERE photo_path IS NOT NULL AND photo_path != '' LIMIT 1");
+$logoPath = $logoStmt->fetchColumn();
+
 $summary = $pdo->query("
     SELECT
         (SELECT COUNT(*) FROM customers)                         AS total_customers,
@@ -19,14 +22,24 @@ function navClass($key, $active) {
 ?>
 <!-- Mobile top bar -->
 <div class="md:hidden bg-brand flex items-center justify-between px-4 py-3">
-  <span class="text-white text-lg font-semibold">Dashboard</span>
+  <?php if (!empty($logoPath)): ?>
+    <img src="../<?= h($logoPath) ?>" alt="Logo" class="w-10 h-10 rounded-full object-cover">
+  <?php else: ?>
+    <span class="text-white text-lg font-semibold">Dashboard</span>
+  <?php endif; ?>
   <button id="menuToggle" class="text-white p-1" aria-label="Open menu">
     <i class="ti ti-menu-2 text-2xl"></i>
   </button>
 </div>
 
 <aside id="sidebar" class="hidden md:flex md:flex-col w-full md:w-64 bg-brand px-4 py-6 md:min-h-screen md:sticky md:top-0 md:h-screen">
-  <h1 class="hidden md:block text-white text-2xl font-semibold px-2 mb-6">Dashboard</h1>
+  <?php if (!empty($logoPath)): ?>
+    <div class="hidden md:flex flex-col items-center justify-center w-full pt-4 mb-6">
+      <img src="../<?= h($logoPath) ?>" alt="Logo" class="w-32 h-32 rounded-full object-cover mx-auto">
+    </div>
+  <?php else: ?>
+    <h1 class="hidden md:block text-white text-2xl font-semibold px-2 mb-6">Dashboard</h1>
+  <?php endif; ?>
 
   <nav id="sidebarNav" class="space-y-2">
     <a href="../dashboard/index.php" data-spa data-page="dashboard" class="<?= navClass('dashboard', $activePage) ?>">

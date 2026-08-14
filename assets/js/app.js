@@ -936,6 +936,10 @@ function initProfileForm() {
 
       if (data.success) {
         document.getElementById('profileSuccess').classList.remove('hidden');
+        if (data.photo_path) {
+          const newSrc = '../' + data.photo_path;
+          document.querySelectorAll('img[alt="Logo"], img[alt="Business Logo"]').forEach(img => img.src = newSrc);
+        }
       } else if (data.errors) {
         Object.entries(data.errors).forEach(([field, msg]) => {
           const el = form.querySelector(`.field-error[data-field="${field}"]`);

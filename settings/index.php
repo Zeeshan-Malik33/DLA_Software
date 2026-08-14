@@ -19,7 +19,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'profile') {
         $name     = trim($_POST['name'] ?? '');
         $email    = trim($_POST['email'] ?? '');
-        $whatsapp = trim($_POST['whatsapp_number'] ?? '');
 
         $errors = [];
         if ($name === '')  $errors['name'] = 'Full name is required.';
@@ -61,11 +60,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($photoPath) {
-            $stmt = $pdo->prepare('UPDATE users SET name=?, email=?, whatsapp_number=?, photo_path=? WHERE user_id=?');
-            $stmt->execute([$name, $email, $whatsapp, $photoPath, $userId]);
+            $stmt = $pdo->prepare('UPDATE users SET name=?, email=?, photo_path=? WHERE user_id=?');
+            $stmt->execute([$name, $email, $photoPath, $userId]);
         } else {
-            $stmt = $pdo->prepare('UPDATE users SET name=?, email=?, whatsapp_number=? WHERE user_id=?');
-            $stmt->execute([$name, $email, $whatsapp, $userId]);
+            $stmt = $pdo->prepare('UPDATE users SET name=?, email=? WHERE user_id=?');
+            $stmt->execute([$name, $email, $userId]);
         }
 
         $_SESSION['user_name'] = $name;
@@ -100,15 +99,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    // --- Preferences ---
-    if ($action === 'preferences') {
-        $language = trim($_POST['preferred_language'] ?? 'en');
-        $stmt = $pdo->prepare('UPDATE users SET preferred_language = ? WHERE user_id = ?');
-        $stmt->execute([$language, $userId]);
-        echo json_encode(['success' => true]);
-        exit;
-    }
-
     echo json_encode(['success' => false, 'message' => 'Unknown action.']);
     exit;
 }
@@ -120,119 +110,96 @@ $stmt = $pdo->prepare('SELECT * FROM users WHERE user_id = ?');
 $stmt->execute([$userId]);
 $user = $stmt->fetch();
 
-$languages = ['en' => 'English', 'ur' => 'Urdu', 'ps' => 'Pashto', 'ar' => 'Arabic'];
-
 ob_start();
 ?>
 
 <div class="mb-6">
   <h2 class="text-2xl font-bold text-gray-900">Settings</h2>
-  <p class="text-sm text-gray-500 mt-1">Manage your account settings and system preferences.</p>
 </div>
 
-<!-- Profile Information -->
-<div class="mb-8">
-  <div class="flex items-center justify-between border-b border-gray-200 pb-3 mb-6">
-    <h3 class="font-semibold text-gray-900 text-lg">Profile Information</h3>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+  <!-- Profile Information (Left Column) -->
+  <div class="lg:col-span-8">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
+      <div class="flex items-center justify-between border-b border-gray-100 pb-5 mb-6">
+        <h3 class="font-semibold text-gray-900 text-lg">Profile Information</h3>
+      </div>
+
+      <form id="profileForm" novalidate>
+        <div class="flex flex-col sm:flex-row gap-8 items-center sm:items-start">
+          <!-- Avatar section -->
+          <div class="flex flex-col items-center shrink-0">
+            <button type="button" id="userPhotoTrigger" class="w-32 h-32 rounded-full overflow-hidden bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center hover:border-brand hover:bg-gray-100 transition-all group relative">
+              <?php if (!empty($user['photo_path'])): ?>
+                <img id="userPhotoPreview" src="../<?= h($user['photo_path']) ?>" class="w-full h-full object-cover" alt="">
+                <div class="absolute inset-0 bg-black/40 hidden group-hover:flex items-center justify-center">
+                  <i class="ti ti-camera text-white text-2xl"></i>
+                </div>
+              <?php else: ?>
+                <img id="userPhotoPreview" class="hidden w-full h-full object-cover" alt="">
+                <span id="userPhotoInitials" class="text-3xl font-bold text-gray-400 group-hover:hidden"><?= h(initials($user['name'])) ?></span>
+                <i class="ti ti-camera text-gray-500 text-2xl hidden group-hover:block"></i>
+              <?php endif; ?>
+            </button>
+            <input type="file" name="photo" id="userPhotoInput" accept="image/jpeg,image/png" class="hidden">
+            <button type="button" id="changePictureBtn" class="text-sm font-medium text-brand hover:text-brand-light mt-4 transition-colors">Change Picture</button>
+            <p id="userPhotoError" class="text-xs text-red-600 mt-2 hidden text-center max-w-[120px]"></p>
+          </div>
+
+          <!-- Form Fields -->
+          <div class="flex-1 space-y-6 w-full">
+            <div>
+              <label class="block text-xs font-bold tracking-wider text-gray-500 uppercase mb-2">Full Name</label>
+              <input type="text" name="name" value="<?= h($user['name']) ?>" placeholder="Full Name"
+                     class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-all bg-gray-50/50 focus:bg-white">
+              <p class="field-error text-xs text-red-600 mt-1.5 hidden" data-field="name"></p>
+            </div>
+            <div>
+              <label class="block text-xs font-bold tracking-wider text-gray-500 uppercase mb-2">Email Address</label>
+              <input type="email" name="email" value="<?= h($user['email']) ?>" placeholder="Email address"
+                     class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-all bg-gray-50/50 focus:bg-white">
+              <p class="field-error text-xs text-red-600 mt-1.5 hidden" data-field="email"></p>
+            </div>
+          </div>
+        </div>
+
+        <div id="profileSuccess" class="hidden mt-8 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-800 text-sm px-5 py-4 flex items-center gap-3">
+          <i class="ti ti-circle-check-filled text-emerald-500 text-lg"></i>
+          <span class="font-medium">Profile updated successfully.</span>
+        </div>
+        
+        <div class="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+          <button type="submit" class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-8 py-3 shadow-md hover:shadow-lg transition-all">Save Changes</button>
+        </div>
+      </form>
+    </div>
   </div>
 
-  <form id="profileForm" novalidate>
-    <div class="flex flex-col sm:flex-row gap-8">
-      <div class="flex flex-col items-center sm:items-start shrink-0">
-        <button type="button" id="userPhotoTrigger" class="w-24 h-24 rounded-full overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
-          <?php if (!empty($user['photo_path'])): ?>
-            <img id="userPhotoPreview" src="../<?= h($user['photo_path']) ?>" class="w-full h-full object-cover" alt="">
-          <?php else: ?>
-            <img id="userPhotoPreview" class="hidden w-full h-full object-cover" alt="">
-            <span id="userPhotoInitials" class="text-2xl font-semibold text-gray-400"><?= h(initials($user['name'])) ?></span>
-          <?php endif; ?>
-        </button>
-        <input type="file" name="photo" id="userPhotoInput" accept="image/jpeg,image/png" class="hidden">
-        <button type="button" id="changePictureBtn" class="text-sm text-blue-600 hover:underline mt-3">Change Picture</button>
-        <p id="userPhotoError" class="text-xs text-red-600 mt-1 hidden"></p>
+  <!-- Security (Right Column) -->
+  <div class="lg:col-span-4">
+    <div id="security-section" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8 sticky top-6">
+      <div class="flex items-center justify-between border-b border-gray-100 pb-5 mb-6">
+        <h3 class="font-semibold text-gray-900 text-lg">Security</h3>
       </div>
 
-      <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
-        <div>
-          <label class="block text-xs font-semibold tracking-wide text-gray-500 uppercase mb-1">Full Name</label>
-          <input type="text" name="name" value="<?= h($user['name']) ?>" placeholder="Full Name"
-                 class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
-          <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="name"></p>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold tracking-wide text-gray-500 uppercase mb-1">Email Address</label>
-          <input type="email" name="email" value="<?= h($user['email']) ?>" placeholder="Email address"
-                 class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
-          <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="email"></p>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold tracking-wide text-gray-500 uppercase mb-1">WhatsApp Number</label>
-          <input type="text" name="whatsapp_number" value="<?= h($user['whatsapp_number']) ?>" placeholder="Enter whatsapp number..."
-                 class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
+      <div class="space-y-4">
+        <div class="bg-gray-50/80 rounded-xl p-5 border border-gray-100/80">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+               <i class="ti ti-lock text-lg"></i>
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-gray-900">Password</p>
+              <p class="text-xs text-gray-500 mt-0.5">Last changed <?= timeAgo($user['password_changed_at'] ?? $user['created_at']) ?></p>
+            </div>
+          </div>
+          <button type="button" id="openPasswordModal" class="w-full rounded-xl border border-gray-200 bg-white text-sm font-medium px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm transition-all">
+            Update Password
+          </button>
         </div>
       </div>
-    </div>
-
-    <div id="profileSuccess" class="hidden mt-5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm px-4 py-2">Profile updated.</div>
-    <div class="mt-5">
-      <button type="submit" class="rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-6 py-2.5">Save Profile</button>
-    </div>
-  </form>
-</div>
-
-<!-- Security -->
-<div id="security-section" class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-8">
-  <div class="flex items-center justify-between mb-4">
-    <h3 class="font-semibold text-gray-900 text-lg">Security</h3>
-    <a href="#security-section" class="text-sm text-blue-600 hover:underline">Manage Security</a>
-  </div>
-
-  <div class="space-y-3">
-    <div class="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3.5">
-      <div class="flex items-center gap-3">
-        <span class="text-gray-400 text-lg tracking-widest">•••</span>
-        <div>
-          <p class="text-sm font-medium text-gray-800">Password</p>
-          <p class="text-xs text-gray-500">Last changed <?= timeAgo($user['password_changed_at'] ?? $user['created_at']) ?></p>
-        </div>
-      </div>
-      <button type="button" id="openPasswordModal" class="rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">Update</button>
-    </div>
-
-    <div class="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3.5">
-      <div class="flex items-center gap-3">
-        <span class="text-gray-400"><i class="ti ti-shield-check text-lg"></i></span>
-        <div>
-          <p class="text-sm font-medium text-gray-800">Two-Factor Authentication (2FA)</p>
-          <p class="text-xs text-gray-500">Adds an extra layer of login security.</p>
-        </div>
-      </div>
-      <?php if ($user['two_factor_enabled']): ?>
-        <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full">ACTIVE</span>
-      <?php else: ?>
-        <span class="text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">NOT ENABLED</span>
-      <?php endif; ?>
     </div>
   </div>
-</div>
-
-<!-- General Preferences -->
-<div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-  <h3 class="font-semibold text-gray-900 text-lg border-b border-gray-100 pb-4 mb-5">General Preferences</h3>
-
-  <form id="preferencesForm" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-    <div>
-      <p class="text-sm font-medium text-gray-800">Language</p>
-      <p class="text-sm text-gray-500 mt-1">Select the primary language for the CRM interface.</p>
-    </div>
-    <select name="preferred_language" onchange="this.form.requestSubmit()"
-            class="rounded-lg border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-      <?php foreach ($languages as $code => $label): ?>
-        <option value="<?= $code ?>" <?= $user['preferred_language'] === $code ? 'selected' : '' ?>><?= $label ?></option>
-      <?php endforeach; ?>
-    </select>
-  </form>
-  <p id="preferencesSuccess" class="hidden mt-3 text-sm text-emerald-600">Preference saved.</p>
 </div>
 
 <!-- Change password modal -->

@@ -12,6 +12,10 @@ if (!empty($_SESSION['user_id'])) {
     exit;
 }
 
+// Fetch logo from any user that has one uploaded
+$logoStmt = $pdo->query("SELECT photo_path FROM users WHERE photo_path IS NOT NULL AND photo_path != '' LIMIT 1");
+$logoPath = $logoStmt->fetchColumn();
+
 $error = '';
 $success = '';
 
@@ -90,8 +94,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="min-h-screen flex flex-col md:flex-row">
 
     <!-- Brand panel: full-width bar on mobile, side panel on desktop -->
-    <div class="bg-brand h-28 md:h-auto md:w-1/2 flex items-center justify-center">
-      <span class="text-white text-2xl md:text-3xl font-semibold tracking-tight">Business Manager</span>
+    <div class="bg-brand h-28 md:h-auto md:w-1/2 flex items-center justify-center flex-col">
+      <?php if (!empty($logoPath)): ?>
+        <img src="../<?= h($logoPath) ?>" alt="Business Logo" class="w-32 h-32 md:w-64 md:h-64 rounded-full object-cover">
+      <?php else: ?>
+        <span class="text-white text-2xl md:text-3xl font-semibold tracking-tight">Business Manager</span>
+      <?php endif; ?>
     </div>
 
     <!-- Form panel -->
