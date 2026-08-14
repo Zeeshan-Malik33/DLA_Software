@@ -60,6 +60,8 @@ $stmt = $pdo->prepare("SELECT category, SUM(amount) AS total FROM personal_expen
 $stmt->execute($params);
 $topCategory = $stmt->fetch();
 
+$isFilterApplied = ($category !== '' || $dateFrom !== '' || $dateTo !== '');
+
 ob_start();
 ?>
 
@@ -72,69 +74,89 @@ ob_start();
     </p>
   </div>
   <div class="flex flex-wrap gap-2">
+    <?php if ($isFilterApplied): ?>
+      <a href="listexpense.php" data-spa
+         class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
+        <i class="ti ti-refresh"></i> Reset
+      </a>
+      <a href="export_pdf.php?<?= h(http_build_query($_GET)) ?>" target="_blank"
+         class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
+        <i class="ti ti-download"></i> Download Report
+      </a>
+    <?php endif; ?>
+
     <a href="addexpense.php" data-spa
        class="inline-flex items-center gap-2 rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-4 py-2">
       <i class="ti ti-plus"></i> Add Expense
     </a>
     <div class="relative">
-      <button type="button" id="exportExpenseToggle"
+      <button type="button" id="expenseFilterToggle"
         class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
-        <i class="ti ti-download"></i> Export <i class="ti ti-chevron-down text-xs"></i>
+        <i class="ti ti-filter"></i> Filter <i class="ti ti-chevron-down text-xs"></i>
       </button>
-      <div id="exportExpenseMenu" class="hidden absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden">
-        <a href="export_pdf.php?<?= h(http_build_query($_GET)) ?>" target="_blank" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Export as PDF</a>
-        <a href="export_excel.php?<?= h(http_build_query($_GET)) ?>" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Export as Excel</a>
+      <div id="expenseFilterMenu" class="hidden absolute left-0 sm:left-auto sm:right-0 mt-1 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-4">
+        <form id="expenseFilterForm">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Category</label>
+              <select name="category" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+                <option value="">All categories</option>
+                <?php foreach ($EXPENSE_CATEGORIES as $cat): ?>
+                  <option value="<?= h($cat) ?>" <?= $category === $cat ? 'selected' : '' ?>><?= h($cat) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Date From</label>
+                <input type="date" name="date_from" id="expenseDateFrom" value="<?= h($dateFrom) ?>"
+                       class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Date To</label>
+                <input type="date" name="date_to" id="expenseDateTo" value="<?= h($dateTo) ?>"
+                       class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+              </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+              <button type="button" id="resetFiltersBtn"
+                      class="rounded-md border border-gray-300 bg-white text-xs font-medium px-3 py-1.5 text-gray-700 hover:bg-gray-50">Reset</button>
+              <button type="submit"
+                      class="inline-flex items-center gap-1 rounded-md bg-brand hover:bg-brand-light text-white text-xs font-medium px-3 py-1.5">
+                Apply
+              </button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Quick range presets -->
-<div class="flex flex-wrap gap-2 my-4">
-  <button type="button" data-expense-preset="today" class="rounded-full border border-gray-300 bg-white text-xs font-medium px-3 py-1.5 text-gray-600 hover:bg-gray-50">Today</button>
-  <button type="button" data-expense-preset="week" class="rounded-full border border-gray-300 bg-white text-xs font-medium px-3 py-1.5 text-gray-600 hover:bg-gray-50">This Week</button>
-  <button type="button" data-expense-preset="month" class="rounded-full border border-gray-300 bg-white text-xs font-medium px-3 py-1.5 text-gray-600 hover:bg-gray-50">This Month</button>
-  <button type="button" data-expense-preset="year" class="rounded-full border border-gray-300 bg-white text-xs font-medium px-3 py-1.5 text-gray-600 hover:bg-gray-50">This Year</button>
-  <button type="button" data-expense-preset="all" class="rounded-full border border-gray-300 bg-white text-xs font-medium px-3 py-1.5 text-gray-600 hover:bg-gray-50">All Time</button>
-</div>
 
-<!-- Filters -->
-<form id="expenseFilterForm" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-    <div>
-      <label class="block text-xs font-semibold text-gray-600 mb-1">Search</label>
-      <input type="text" name="search" value="<?= h($search) ?>" placeholder="Name or description..."
-             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-    </div>
-    <div>
-      <label class="block text-xs font-semibold text-gray-600 mb-1">Category</label>
-      <select name="category" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-        <option value="">All categories</option>
-        <?php foreach ($EXPENSE_CATEGORIES as $cat): ?>
-          <option value="<?= h($cat) ?>" <?= $category === $cat ? 'selected' : '' ?>><?= h($cat) ?></option>
-        <?php endforeach; ?>
-      </select>
-    </div>
-    <div>
-      <label class="block text-xs font-semibold text-gray-600 mb-1">Date From</label>
-      <input type="date" name="date_from" id="expenseDateFrom" value="<?= h($dateFrom) ?>"
-             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-    </div>
-    <div>
-      <label class="block text-xs font-semibold text-gray-600 mb-1">Date To</label>
-      <input type="date" name="date_to" id="expenseDateTo" value="<?= h($dateTo) ?>"
-             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-    </div>
-    <div class="flex gap-2">
-      <button type="button" id="resetFiltersBtn"
-              class="rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">Reset</button>
-      <button type="submit"
-              class="inline-flex items-center gap-2 rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-4 py-2">
-        <i class="ti ti-filter"></i> Apply
-      </button>
-    </div>
+<!-- Stat cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+    <p class="text-sm text-gray-500 mb-2">Total (filtered)</p>
+    <p class="text-2xl font-bold text-gray-900"><?= formatMoney($filteredStats['total']) ?></p>
+    <p class="text-xs text-gray-400 mt-2"><?= (int) $filteredStats['cnt'] ?> expense<?= $filteredStats['cnt'] == 1 ? '' : 's' ?></p>
   </div>
-</form>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+    <p class="text-sm text-gray-500 mb-2">This Month</p>
+    <p class="text-2xl font-bold text-gray-900"><?= formatMoney($thisMonthTotal) ?></p>
+    <p class="text-xs text-gray-400 mt-2"><?= date('F Y') ?></p>
+  </div>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+    <p class="text-sm text-gray-500 mb-2">This Year</p>
+    <p class="text-2xl font-bold text-gray-900"><?= formatMoney($thisYearTotal) ?></p>
+    <p class="text-xs text-gray-400 mt-2"><?= date('Y') ?></p>
+  </div>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+    <p class="text-sm text-gray-500 mb-2">Top Category</p>
+    <p class="text-2xl font-bold text-gray-900"><?= $topCategory ? h($topCategory['category']) : '—' ?></p>
+    <p class="text-xs text-gray-400 mt-2"><?= $topCategory ? formatMoney($topCategory['total']) : 'No data' ?></p>
+  </div>
+</div>
 
 <!-- Table -->
 <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto mb-6">
@@ -176,29 +198,6 @@ ob_start();
   </table>
 </div>
 
-<!-- Stat cards -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-    <p class="text-sm text-gray-500 mb-2">Total (filtered)</p>
-    <p class="text-2xl font-bold text-gray-900"><?= formatMoney($filteredStats['total']) ?></p>
-    <p class="text-xs text-gray-400 mt-2"><?= (int) $filteredStats['cnt'] ?> expense<?= $filteredStats['cnt'] == 1 ? '' : 's' ?></p>
-  </div>
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-    <p class="text-sm text-gray-500 mb-2">This Month</p>
-    <p class="text-2xl font-bold text-gray-900"><?= formatMoney($thisMonthTotal) ?></p>
-    <p class="text-xs text-gray-400 mt-2"><?= date('F Y') ?></p>
-  </div>
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-    <p class="text-sm text-gray-500 mb-2">This Year</p>
-    <p class="text-2xl font-bold text-gray-900"><?= formatMoney($thisYearTotal) ?></p>
-    <p class="text-xs text-gray-400 mt-2"><?= date('Y') ?></p>
-  </div>
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-    <p class="text-sm text-gray-500 mb-2">Top Category</p>
-    <p class="text-2xl font-bold text-gray-900"><?= $topCategory ? h($topCategory['category']) : '—' ?></p>
-    <p class="text-xs text-gray-400 mt-2"><?= $topCategory ? formatMoney($topCategory['total']) : 'No data' ?></p>
-  </div>
-</div>
 
 <?php
 $content = ob_get_clean();

@@ -38,11 +38,15 @@ async function navigateTo(url, push = true) {
     content.innerHTML = html;
     if (push) history.pushState({}, '', url);
     setActiveSidebarLink(url);
-    initPageScripts();
+    try {
+      initPageScripts();
+    } catch (scriptErr) {
+      console.error('Page script init error:', scriptErr);
+    }
     window.scrollTo({ top: 0, behavior: 'instant' });
     closeMobileSidebar();
   } catch (err) {
-    console.error(err);
+    console.error('Navigation error:', err);
     window.location.href = url; // fall back to a normal page load
   } finally {
     content.classList.remove('opacity-50', 'pointer-events-none');
@@ -111,7 +115,7 @@ function initPageScripts() {
   initExpenseFilterForm();
   initExpenseDeleteButtons();
   initExpensePresets();
-  initExportExpenseToggle();
+  initExpenseFilterDropdownToggle();
 }
 
 function initDashboardRangeForm() {
@@ -1141,30 +1145,64 @@ function initExpenseDeleteButtons() {
   document.querySelectorAll('[data-delete-expense]').forEach((btn) => {
     if (btn.dataset.bound) return;
     btn.dataset.bound = '1';
-    btn.addEventListener('click', async function () {
-      if (!confirm('Delete this expense? This cannot be undone.')) return;
+    btn.addEventListener('click', function () {
       const id = btn.dataset.deleteExpense;
-      try {
-        const res = await fetch('listexpense.php?action=delete&id=' + id, { method: 'POST' });
-        const data = await res.json();
-        if (data.success) {
-          navigateTo('listexpense.php', true);
-        } else {
-          alert(data.message || 'Failed to delete this expense.');
-        }
-      } catch (err) {
-        alert('Network error. Please try again.');
+      const modal = document.getElementById('customDeleteModal');
+      
+      if (!modal) {
+        // Fallback if modal is missing
+        if (!confirm('Delete this expense? This cannot be undone.')) return;
+        deleteExpense(id);
+        return;
       }
+
+      const confirmBtn = document.getElementById('customDeleteConfirm');
+      const cancelBtn = document.getElementById('customDeleteCancel');
+      const overlay = document.getElementById('customDeleteOverlay');
+
+      modal.classList.remove('hidden');
+
+      const cleanup = () => {
+        modal.classList.add('hidden');
+        confirmBtn.removeEventListener('click', onConfirm);
+        cancelBtn.removeEventListener('click', onCancel);
+        overlay.removeEventListener('click', onCancel);
+      };
+
+      const onConfirm = () => {
+        cleanup();
+        deleteExpense(id);
+      };
+
+      const onCancel = () => cleanup();
+
+      confirmBtn.addEventListener('click', onConfirm);
+      cancelBtn.addEventListener('click', onCancel);
+      overlay.addEventListener('click', onCancel);
     });
   });
+
+  async function deleteExpense(id) {
+    try {
+      const res = await fetch('listexpense.php?action=delete&id=' + id, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        navigateTo('listexpense.php', true);
+      } else {
+        alert(data.message || 'Failed to delete this expense.');
+      }
+    } catch (err) {
+      alert('Network error. Please try again.');
+    }
+  }
 }
 
 // ---------------------------------------------------------
-// Export dropdown (PDF / Excel)
+// Expense Filter dropdown
 // ---------------------------------------------------------
-function initExportExpenseToggle() {
-  const toggle = document.getElementById('exportExpenseToggle');
-  const menu = document.getElementById('exportExpenseMenu');
+function initExpenseFilterDropdownToggle() {
+  const toggle = document.getElementById('expenseFilterToggle');
+  const menu = document.getElementById('expenseFilterMenu');
   if (!toggle || !menu) return;
   if (toggle.dataset.bound) return;
   toggle.dataset.bound = '1';
@@ -1172,6 +1210,9 @@ function initExportExpenseToggle() {
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();
     menu.classList.toggle('hidden');
+  });
+  menu.addEventListener('click', (e) => {
+    e.stopPropagation(); // keep menu open when interacting with form
   });
   document.addEventListener('click', () => menu.classList.add('hidden'));
 }
