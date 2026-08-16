@@ -110,22 +110,26 @@ else:
 
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 overflow-x-auto">
       <h3 class="font-semibold text-gray-900 mb-4">Order History</h3>
-      <table class="w-full text-sm min-w-[500px]">
+      <table class="w-full text-sm min-w-[600px]">
         <thead>
-          <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-100">
+          <tr class="text-center text-xs text-gray-400 uppercase border-b border-gray-100">
             <th class="py-2 font-medium">Order</th>
             <th class="py-2 font-medium">Date</th>
-            <th class="py-2 font-medium text-right">Total</th>
-            <th class="py-2 font-medium text-right">Status</th>
+            <th class="py-2 font-medium">Total</th>
+            <th class="py-2 font-medium">Balance</th>
+            <th class="py-2 font-medium">Status</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
           <?php foreach ($orders as $order): $c = statusColor($order['status']); ?>
-          <tr>
+          <tr class="text-center">
             <td class="py-3 font-medium text-gray-800">#<?= (int) $order['order_id'] ?> · <?= h($order['product_description']) ?></td>
             <td class="py-3 text-gray-500"><?= date('M j, Y', strtotime($order['order_date'])) ?></td>
-            <td class="py-3 text-right text-gray-800"><?= formatMoney($order['total_amount'], $order['currency']) ?></td>
-            <td class="py-3 text-right">
+            <td class="py-3 text-gray-800"><?= formatMoney($order['total_amount'], $order['currency']) ?></td>
+            <td class="py-3 <?= $order['remaining_balance'] > 0 ? 'text-red-600 font-semibold' : 'text-emerald-600 font-semibold' ?>">
+              <?= formatMoney($order['remaining_balance'], $order['currency']) ?>
+            </td>
+            <td class="py-3">
               <span class="inline-block <?= $c['soft'] ?> <?= $c['text'] ?> text-xs font-medium px-2.5 py-1 rounded-full">
                 <?= h(statusLabel($order['status'])) ?>
               </span>
@@ -133,7 +137,7 @@ else:
           </tr>
           <?php endforeach; ?>
           <?php if (empty($orders)): ?>
-          <tr><td colspan="4" class="py-6 text-center text-gray-400">No orders yet for this customer.</td></tr>
+          <tr><td colspan="5" class="py-6 text-center text-gray-400">No orders yet for this customer.</td></tr>
           <?php endif; ?>
         </tbody>
       </table>

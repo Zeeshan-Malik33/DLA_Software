@@ -65,7 +65,9 @@ $isFilterApplied = ($category !== '' || $dateFrom !== '' || $dateTo !== '');
 ob_start();
 ?>
 
-<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-1">
+<div class="flex flex-col h-full">
+
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 shrink-0">
   <div>
     <h2 class="text-2xl font-bold text-gray-900">Personal Expenses</h2>
     <p class="text-sm text-gray-400 mt-1">
@@ -135,7 +137,7 @@ ob_start();
 
 
 <!-- Stat cards -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 shrink-0">
   <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
     <p class="text-sm text-gray-500 mb-2">Total (filtered)</p>
     <p class="text-2xl font-bold text-gray-900"><?= formatMoney($filteredStats['total']) ?></p>
@@ -158,23 +160,24 @@ ob_start();
   </div>
 </div>
 
-<!-- Table -->
-<div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto mb-6">
+<!-- Desktop Table -->
+<div class="hidden lg:flex flex-col flex-1 min-h-0 bg-white rounded-xl border border-gray-200 shadow-sm relative mb-6">
+  <div class="overflow-x-auto overflow-y-auto flex-1">
   <table class="w-full text-sm min-w-[760px]">
-    <thead>
-      <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-100">
+    <thead class="sticky top-0 bg-white z-10 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-full after:border-b after:border-gray-100">
+      <tr class="text-center text-xs text-gray-400 uppercase">
         <th class="px-5 py-3 font-medium">#</th>
         <th class="px-5 py-3 font-medium">Date</th>
         <th class="px-5 py-3 font-medium">Name</th>
         <th class="px-5 py-3 font-medium">Category</th>
         <th class="px-5 py-3 font-medium">Description</th>
-        <th class="px-5 py-3 font-medium text-right">Amount</th>
-        <th class="px-5 py-3 font-medium text-right">Actions</th>
+        <th class="px-5 py-3 font-medium">Amount</th>
+        <th class="px-5 py-3 font-medium">Actions</th>
       </tr>
     </thead>
     <tbody class="divide-y divide-gray-100">
       <?php foreach ($expenses as $i => $e): ?>
-      <tr>
+      <tr class="text-center">
         <td class="px-5 py-4 text-gray-400"><?= $i + 1 ?></td>
         <td class="px-5 py-4 text-gray-500 whitespace-nowrap"><?= date('M j, Y', strtotime($e['expense_date'])) ?></td>
         <td class="px-5 py-4 font-medium text-gray-800"><?= h($e['name']) ?></td>
@@ -182,9 +185,9 @@ ob_start();
           <span class="inline-block <?= expenseCategoryColor($e['category']) ?> text-xs font-medium px-2.5 py-1 rounded-full"><?= h($e['category']) ?></span>
         </td>
         <td class="px-5 py-4 text-gray-500 max-w-xs truncate"><?= h($e['description']) ?></td>
-        <td class="px-5 py-4 text-right font-medium text-gray-800"><?= formatMoney($e['amount']) ?></td>
+        <td class="px-5 py-4 font-medium text-gray-800"><?= formatMoney($e['amount']) ?></td>
         <td class="px-5 py-4">
-          <div class="flex items-center justify-end gap-3 text-gray-400">
+          <div class="flex items-center justify-center gap-3 text-gray-400">
             <a href="editexpense.php?id=<?= $e['expense_id'] ?>" data-spa title="Edit" class="hover:text-brand"><i class="ti ti-edit"></i></a>
             <button type="button" data-delete-expense="<?= $e['expense_id'] ?>" title="Delete" class="hover:text-red-600"><i class="ti ti-trash"></i></button>
           </div>
@@ -196,8 +199,51 @@ ob_start();
       <?php endif; ?>
     </tbody>
   </table>
+  </div>
 </div>
 
+<!-- Mobile Cards -->
+<div class="grid grid-cols-1 gap-4 lg:hidden mb-6">
+  <?php foreach ($expenses as $i => $e): ?>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 relative">
+    <div class="flex justify-between items-start mb-3">
+      <div>
+        <span class="inline-block <?= expenseCategoryColor($e['category']) ?> text-xs font-medium px-2 py-0.5 rounded-full mb-1">
+          <?= h($e['category']) ?>
+        </span>
+        <h4 class="font-bold text-gray-900"><?= h($e['name']) ?></h4>
+      </div>
+      <div class="flex items-center gap-3 text-gray-400">
+        <a href="editexpense.php?id=<?= $e['expense_id'] ?>" data-spa title="Edit" class="hover:text-brand"><i class="ti ti-edit"></i></a>
+        <button type="button" data-delete-expense="<?= $e['expense_id'] ?>" title="Delete" class="hover:text-red-600"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>
+    
+    <div class="mb-3">
+      <p class="text-xs text-gray-400 mb-0.5">Description</p>
+      <p class="text-sm text-gray-600 line-clamp-2"><?= h($e['description'] ?: '—') ?></p>
+    </div>
+    
+    <div class="pt-3 border-t border-gray-100 flex items-center justify-between">
+      <div>
+        <p class="text-xs text-gray-400 mb-0.5">Date</p>
+        <p class="text-sm text-gray-800 font-medium"><?= date('d M Y', strtotime($e['expense_date'])) ?></p>
+      </div>
+      <div class="text-right">
+        <p class="text-xs text-gray-400 mb-0.5">Amount</p>
+        <p class="text-gray-900 font-bold text-base"><?= formatMoney($e['amount']) ?></p>
+      </div>
+    </div>
+  </div>
+  <?php endforeach; ?>
+  <?php if (empty($expenses)): ?>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center text-gray-400 text-sm">
+    No expenses recorded yet.
+  </div>
+  <?php endif; ?>
+</div>
+
+</div> <!-- End of flex wrapper -->
 
 <?php
 $content = ob_get_clean();

@@ -22,6 +22,39 @@ const CITIES_BY_COUNTRY = {
 let revenueChartInstance = null;
 let statusChartInstance = null;
 
+window.CustomConfirm = function(message) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('customDeleteModal');
+    if (!modal) {
+      resolve(confirm(message));
+      return;
+    }
+    
+    const msgEl = modal.querySelector('p');
+    if (msgEl && message) msgEl.textContent = message;
+
+    const confirmBtn = document.getElementById('customDeleteConfirm');
+    const cancelBtn = document.getElementById('customDeleteCancel');
+    const overlay = document.getElementById('customDeleteOverlay');
+
+    modal.classList.remove('hidden');
+
+    const cleanup = () => {
+      modal.classList.add('hidden');
+      confirmBtn.removeEventListener('click', onConfirm);
+      cancelBtn.removeEventListener('click', onCancel);
+      overlay.removeEventListener('click', onCancel);
+    };
+
+    const onConfirm = () => { cleanup(); resolve(true); };
+    const onCancel = () => { cleanup(); resolve(false); };
+
+    confirmBtn.addEventListener('click', onConfirm);
+    cancelBtn.addEventListener('click', onCancel);
+    overlay.addEventListener('click', onCancel);
+  });
+};
+
 // ---------------------------------------------------------
 // Navigation core
 // ---------------------------------------------------------
@@ -78,10 +111,36 @@ function closeMobileSidebar() {
 }
 
 document.addEventListener('click', function (e) {
+  // Global action-toggle handler
+  const toggle = e.target.closest('.action-toggle');
+  if (toggle) {
+    const container = toggle.closest('.relative') || toggle.parentElement;
+    const dropdown = container.querySelector('.action-dropdown');
+    if (dropdown) {
+      const isHidden = dropdown.classList.contains('hidden');
+      document.querySelectorAll('.action-dropdown').forEach(dd => dd.classList.add('hidden'));
+      if (isHidden) dropdown.classList.remove('hidden');
+    }
+    return;
+  }
+  
+  // Close all action dropdowns if click is outside
+  if (!e.target.closest('.action-dropdown')) {
+    document.querySelectorAll('.action-dropdown').forEach(dd => dd.classList.add('hidden'));
+  }
+
   const link = e.target.closest('[data-spa]');
   if (!link) return;
   e.preventDefault();
-  navigateTo(link.getAttribute('href'), true);
+  
+  const targetUrl = link.getAttribute('href');
+  const targetObj = new URL(targetUrl, window.location.href);
+  
+  if (targetObj.pathname === window.location.pathname && targetObj.search === window.location.search) {
+    return; // Already on this page
+  }
+  
+  navigateTo(targetUrl, true);
 });
 
 window.addEventListener('popstate', function () {
@@ -182,13 +241,16 @@ function initCustomerForm() {
   // Dependent City dropdown
   const countrySelect = document.getElementById('countrySelect');
   const citySelect = document.getElementById('citySelect');
-  function populateCities(selected) {
-    const cities = CITIES_BY_COUNTRY[countrySelect.value] || [];
-    citySelect.innerHTML = '<option value="">City</option>' +
-      cities.map(c => `<option value="${c}" ${c === selected ? 'selected' : ''}>${c}</option>`).join('');
+  const cityList = document.getElementById('cityList');
+  if (countrySelect && citySelect && cityList) {
+    function populateCities(selected) {
+      const cities = CITIES_BY_COUNTRY[countrySelect.value] || [];
+      cityList.innerHTML = cities.map(c => `<option value="${c}"></option>`).join('');
+    }
+    countrySelect.addEventListener('change', () => populateCities(null));
+    countrySelect.addEventListener('input', () => populateCities(null));
+    populateCities(citySelect.dataset.selected || null);
   }
-  countrySelect.addEventListener('change', () => populateCities(null));
-  populateCities(citySelect.dataset.selected || null);
 
   // Submit via fetch so the sidebar never reloads
   form.addEventListener('submit', async function (e) {
@@ -258,6 +320,38 @@ function initFilterForm() {
   if (resetBtn) {
     resetBtn.addEventListener('click', () => navigateTo('listcustomer.php', true));
   }
+
+  // Filter checkboxes (for toggling fields)
+  document.querySelectorAll('.filter-checkbox').forEach(cb => {
+    if (cb.dataset.bound) return;
+    cb.dataset.bound = '1';
+    
+    cb.addEventListener('change', function() {
+      const targetId = this.value;
+      const targetEl = document.getElementById(targetId);
+      if (targetEl) {
+        if (this.checked) {
+          targetEl.classList.remove('hidden');
+        } else {
+          targetEl.classList.add('hidden');
+          targetEl.querySelectorAll('input, select').forEach(inp => inp.value = '');
+        }
+      }
+      
+      const anyChecked = Array.from(document.querySelectorAll('.filter-checkbox')).some(c => c.checked);
+      if (anyChecked) {
+        form.classList.remove('hidden');
+      } else {
+        form.classList.add('hidden');
+      }
+    });
+  });
+  
+  // Show form initially if any filter is active
+  const anyCheckedInit = Array.from(document.querySelectorAll('.filter-checkbox')).some(c => c.checked);
+  if (anyCheckedInit) {
+    form.classList.remove('hidden');
+  }
 }
 
 // ---------------------------------------------------------
@@ -268,7 +362,8 @@ function initDeleteButtons() {
     if (btn.dataset.bound) return;
     btn.dataset.bound = '1';
     btn.addEventListener('click', async function () {
-      if (!confirm('Delete this customer? This cannot be undone.')) return;
+      const confirmed = await window.CustomConfirm('Are you sure you want to delete this customer? This cannot be undone.');
+      if (!confirmed) return;
       const id = btn.dataset.deleteCustomer;
       try {
         const res = await fetch('listcustomer.php?action=delete&id=' + id, { method: 'POST' });
@@ -591,7 +686,8 @@ function initOrderDeleteButtons() {
     if (btn.dataset.bound) return;
     btn.dataset.bound = '1';
     btn.addEventListener('click', async function () {
-      if (!confirm('Delete this order? This cannot be undone.')) return;
+      const confirmed = await window.CustomConfirm('Are you sure you want to delete this order? This cannot be undone.');
+      if (!confirmed) return;
       const id = btn.dataset.deleteOrder;
       try {
         const res = await fetch('deleteorder.php?id=' + id, { method: 'POST' });
@@ -741,7 +837,8 @@ function initPaymentDeleteButtons() {
     if (btn.dataset.bound) return;
     btn.dataset.bound = '1';
     btn.addEventListener('click', async function () {
-      if (!confirm('Delete this payment? This will adjust the order balance and cannot be undone.')) return;
+      const confirmed = await window.CustomConfirm('Are you sure you want to delete this payment? This will adjust the order balance and cannot be undone.');
+      if (!confirmed) return;
       const id = btn.dataset.deletePayment;
       try {
         const res = await fetch('listpayment.php?action=delete&id=' + id, { method: 'POST' });
@@ -1148,40 +1245,12 @@ function initExpenseDeleteButtons() {
   document.querySelectorAll('[data-delete-expense]').forEach((btn) => {
     if (btn.dataset.bound) return;
     btn.dataset.bound = '1';
-    btn.addEventListener('click', function () {
+    btn.addEventListener('click', async function () {
       const id = btn.dataset.deleteExpense;
-      const modal = document.getElementById('customDeleteModal');
-      
-      if (!modal) {
-        // Fallback if modal is missing
-        if (!confirm('Delete this expense? This cannot be undone.')) return;
+      const confirmed = await window.CustomConfirm('Are you sure you want to delete this expense? This cannot be undone.');
+      if (confirmed) {
         deleteExpense(id);
-        return;
       }
-
-      const confirmBtn = document.getElementById('customDeleteConfirm');
-      const cancelBtn = document.getElementById('customDeleteCancel');
-      const overlay = document.getElementById('customDeleteOverlay');
-
-      modal.classList.remove('hidden');
-
-      const cleanup = () => {
-        modal.classList.add('hidden');
-        confirmBtn.removeEventListener('click', onConfirm);
-        cancelBtn.removeEventListener('click', onCancel);
-        overlay.removeEventListener('click', onCancel);
-      };
-
-      const onConfirm = () => {
-        cleanup();
-        deleteExpense(id);
-      };
-
-      const onCancel = () => cleanup();
-
-      confirmBtn.addEventListener('click', onConfirm);
-      cancelBtn.addEventListener('click', onCancel);
-      overlay.addEventListener('click', onCancel);
     });
   });
 

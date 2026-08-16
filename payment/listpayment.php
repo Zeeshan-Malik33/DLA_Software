@@ -102,7 +102,9 @@ $isFilterApplied = ($txn !== '' || $name !== '' || $method !== '');
 ob_start();
 ?>
 
-<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+<div class="flex flex-col h-full">
+
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 shrink-0">
   <div>
     <h2 class="text-2xl font-bold text-gray-900">Payment Management</h2>
   </div>
@@ -165,7 +167,7 @@ ob_start();
 </div>
 
 <!-- Stat cards -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 shrink-0">
   <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
     <span class="w-11 h-11 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i class="ti ti-file-invoice text-lg"></i></span>
     <div>
@@ -205,39 +207,39 @@ ob_start();
   </div>
 </div>
 
-<!-- Table -->
-<div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto mb-6">
+<!-- Desktop Table -->
+<div class="hidden lg:block bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto overflow-y-auto flex-1 min-h-0 relative mb-6">
   <table class="w-full text-sm min-w-[880px]">
-    <thead>
-      <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-100">
+    <thead class="sticky top-0 bg-white z-10 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-full after:border-b after:border-gray-100">
+      <tr class="text-center text-xs text-gray-400 uppercase">
         <th class="px-5 py-3 font-medium">#</th>
         <th class="px-5 py-3 font-medium">Transaction ID</th>
         <th class="px-5 py-3 font-medium">Date</th>
         <th class="px-5 py-3 font-medium">Customer Name</th>
         <th class="px-5 py-3 font-medium">Method</th>
-        <th class="px-5 py-3 font-medium text-right">Amount</th>
+        <th class="px-5 py-3 font-medium">Amount</th>
         <th class="px-5 py-3 font-medium">Status</th>
-        <th class="px-5 py-3 font-medium text-right">Actions</th>
+        <th class="px-5 py-3 font-medium">Actions</th>
       </tr>
     </thead>
     <tbody class="divide-y divide-gray-100">
       <?php foreach ($payments as $i => $p): ?>
-      <tr data-payment='<?= h(json_encode($p)) ?>'>
+      <tr class="text-center" data-payment='<?= h(json_encode($p)) ?>'>
         <td class="px-5 py-4 text-gray-400"><?= $i + 1 ?></td>
         <td class="px-5 py-4 font-semibold text-brand"><?= h($p['transaction_id']) ?></td>
         <td class="px-5 py-4 text-gray-500 whitespace-nowrap"><?= date('M j, Y, H:i', strtotime($p['payment_date'])) ?></td>
         <td class="px-5 py-4 font-medium text-gray-800"><?= h($p['full_name'] ?: 'Unnamed') ?></td>
         <td class="px-5 py-4 text-gray-600">
-          <span class="inline-flex items-center gap-1.5"><i class="ti <?= $methodIcons[$p['payment_method']] ?? 'ti-dots' ?>"></i> <?= $methodLabels[$p['payment_method']] ?? ucfirst($p['payment_method']) ?></span>
+          <span class="inline-flex items-center justify-center gap-1.5"><i class="ti <?= $methodIcons[$p['payment_method']] ?? 'ti-dots' ?>"></i> <?= $methodLabels[$p['payment_method']] ?? ucfirst($p['payment_method']) ?></span>
         </td>
-        <td class="px-5 py-4 text-right font-medium text-gray-800"><?= formatMoney($p['amount']) ?></td>
+        <td class="px-5 py-4 font-medium text-gray-800"><?= formatMoney($p['amount']) ?></td>
         <td class="px-5 py-4">
           <span class="inline-block <?= $statusStyles[$p['status']] ?? 'bg-gray-100 text-gray-600' ?> text-xs font-medium px-2.5 py-1 rounded-full">
             <?= ucfirst($p['status']) ?>
           </span>
         </td>
         <td class="px-5 py-4">
-          <div class="flex items-center justify-end gap-3 text-gray-400">
+          <div class="flex items-center justify-center gap-3 text-gray-400">
             <button type="button" data-view-payment title="View" class="hover:text-brand"><i class="ti ti-eye"></i></button>
             <a href="receipt.php?id=<?= $p['payment_id'] ?>" target="_blank" title="Digital Receipt" class="hover:text-brand"><i class="ti ti-file-text"></i></a>
             <button type="button" data-delete-payment="<?= $p['payment_id'] ?>" title="Delete" class="hover:text-red-600"><i class="ti ti-trash"></i></button>
@@ -252,7 +254,58 @@ ob_start();
   </table>
 </div>
 
+<!-- Mobile Cards -->
+<div class="grid grid-cols-1 gap-4 lg:hidden mb-6">
+  <?php foreach ($payments as $i => $p): ?>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 relative" data-payment='<?= h(json_encode($p)) ?>'>
+    <div class="flex justify-between items-start mb-3">
+      <div>
+        <span class="inline-block <?= $statusStyles[$p['status']] ?? 'bg-gray-100 text-gray-600' ?> text-xs font-medium px-2 py-0.5 rounded-full mb-1">
+          <?= ucfirst($p['status']) ?>
+        </span>
+        <h4 class="font-bold text-gray-900"><?= h($p['transaction_id']) ?></h4>
+      </div>
+      <div class="flex items-center gap-3 text-gray-400">
+        <button type="button" data-view-payment title="View" class="hover:text-brand"><i class="ti ti-eye"></i></button>
+        <a href="receipt.php?id=<?= $p['payment_id'] ?>" target="_blank" title="Digital Receipt" class="hover:text-brand"><i class="ti ti-file-text"></i></a>
+        <button type="button" data-delete-payment="<?= $p['payment_id'] ?>" title="Delete" class="hover:text-red-600"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>
+    
+    <div class="mb-3">
+      <p class="text-xs text-gray-400 mb-0.5">Customer</p>
+      <p class="text-sm text-gray-800 font-medium"><?= h($p['full_name'] ?: 'Unnamed') ?></p>
+    </div>
+    
+    <div class="grid grid-cols-2 gap-y-3 gap-x-4 text-sm mb-4">
+      <div>
+        <p class="text-xs text-gray-400 mb-0.5">Method</p>
+        <p class="text-gray-800 font-medium">
+          <span class="inline-flex items-center gap-1.5"><i class="ti <?= $methodIcons[$p['payment_method']] ?? 'ti-dots' ?>"></i> <?= $methodLabels[$p['payment_method']] ?? ucfirst($p['payment_method']) ?></span>
+        </p>
+      </div>
+      <div>
+        <p class="text-xs text-gray-400 mb-0.5">Date</p>
+        <p class="text-gray-800 font-medium"><?= date('M j, Y', strtotime($p['payment_date'])) ?></p>
+      </div>
+    </div>
+    
+    <div class="pt-3 border-t border-gray-100 flex items-center justify-between">
+      <div class="text-right w-full">
+        <p class="text-xs text-gray-400 mb-0.5">Amount</p>
+        <p class="text-gray-900 font-bold text-base"><?= formatMoney($p['amount']) ?></p>
+      </div>
+    </div>
+  </div>
+  <?php endforeach; ?>
+  <?php if (empty($payments)): ?>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center text-gray-400 text-sm">
+    No payments recorded yet.
+  </div>
+  <?php endif; ?>
+</div>
 
+</div> <!-- End of h-full flex flex-col wrapper -->
 
 <!-- View payment modal -->
 <div id="paymentModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
