@@ -227,10 +227,23 @@ ob_start();
           </span>
         </td>
         <td class="px-5 py-4">
-          <div class="flex items-center justify-center gap-3 text-gray-400">
-            <a href="vieworder.php?id=<?= $order['order_id'] ?>" data-spa title="View" class="hover:text-brand"><i class="ti ti-eye"></i></a>
-            <a href="editorder.php?id=<?= $order['order_id'] ?>" data-spa title="Edit" class="hover:text-brand"><i class="ti ti-edit"></i></a>
-            <button type="button" data-delete-order="<?= $order['order_id'] ?>" title="Delete" class="hover:text-red-600"><i class="ti ti-trash"></i></button>
+          <div class="relative flex justify-center">
+            <button type="button" class="text-gray-400 hover:text-gray-600 p-1 action-toggle">
+              <i class="ti ti-dots-vertical text-lg pointer-events-none"></i>
+            </button>
+            <div class="absolute -right-2 top-full hidden pt-1 z-50 w-32 text-left action-dropdown">
+              <div class="bg-white rounded-lg shadow-lg border border-gray-100 py-1 relative z-50">
+                <a href="vieworder.php?id=<?= $order['order_id'] ?>" data-spa class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand">
+                  <i class="ti ti-eye"></i> View
+                </a>
+                <a href="editorder.php?id=<?= $order['order_id'] ?>" data-spa class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand">
+                  <i class="ti ti-edit"></i> Edit
+                </a>
+                <button type="button" data-delete-order="<?= $order['order_id'] ?>" class="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-gray-50">
+                  <i class="ti ti-trash"></i> Delete
+                </button>
+              </div>
+            </div>
           </div>
         </td>
       </tr>
@@ -246,7 +259,7 @@ ob_start();
 <!-- Mobile Cards -->
 <div class="grid grid-cols-1 gap-4 lg:hidden mb-6">
   <?php foreach ($orders as $order): $c = statusColor($order['status']); ?>
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 relative">
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 relative">
     <div class="flex justify-between items-start mb-4">
       <div>
         <div class="flex items-center gap-2 mb-1">

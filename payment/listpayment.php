@@ -67,28 +67,18 @@ $payments = $stmt->fetchAll();
 // Stat cards
 // ---------------------------------------------------------
 $totalRevenue = (float) $pdo->query("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'completed'")->fetchColumn();
-$revenueThisMonth = (float) $pdo->query("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'completed' AND MONTH(payment_date) = MONTH(CURDATE()) AND YEAR(payment_date) = YEAR(CURDATE())")->fetchColumn();
-$revenueLastMonth = (float) $pdo->query("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'completed' AND MONTH(payment_date) = MONTH(CURDATE() - INTERVAL 1 MONTH) AND YEAR(payment_date) = YEAR(CURDATE() - INTERVAL 1 MONTH)")->fetchColumn();
-$revenueTrend = $revenueLastMonth > 0 ? round((($revenueThisMonth - $revenueLastMonth) / $revenueLastMonth) * 100, 1) : 0;
-
-$pendingCount = (int) $pdo->query("SELECT COUNT(*) FROM payments WHERE status = 'pending'")->fetchColumn();
-
+$pendingPayment = (float) $pdo->query("SELECT COALESCE(SUM(remaining_balance), 0) FROM orders")->fetchColumn();
 $refundsIssued = (float) $pdo->query("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'refunded'")->fetchColumn();
-$refundsThisWeek = (float) $pdo->query("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'refunded' AND payment_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)")->fetchColumn();
-$refundsLastWeek = (float) $pdo->query("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'refunded' AND payment_date >= DATE_SUB(CURDATE(), INTERVAL 14 DAY) AND payment_date < DATE_SUB(CURDATE(), INTERVAL 7 DAY)")->fetchColumn();
-$refundsTrend = $refundsLastWeek > 0 ? round((($refundsThisWeek - $refundsLastWeek) / $refundsLastWeek) * 100, 1) : 0;
-
-$totalPayments = (int) $pdo->query("SELECT COUNT(*) FROM payments")->fetchColumn();
-$completedPayments = (int) $pdo->query("SELECT COUNT(*) FROM payments WHERE status = 'completed'")->fetchColumn();
-$successRate = $totalPayments > 0 ? round(($completedPayments / $totalPayments) * 100, 1) : 0;
 
 $methodIcons = [
-    'cash' => 'ti-cash', 'visa' => 'ti-credit-card', 'mastercard' => 'ti-credit-card',
-    'bank_transfer' => 'ti-building-bank', 'other' => 'ti-dots',
+    'cash' => 'ti-cash',
+    'bank_transfer' => 'ti-building-bank', 
+    'other' => 'ti-dots',
 ];
 $methodLabels = [
-    'cash' => 'Cash', 'visa' => 'Visa', 'mastercard' => 'Mastercard',
-    'bank_transfer' => 'Bank Transfer', 'other' => 'Other',
+    'cash' => 'Cash',
+    'bank_transfer' => 'Bank Transfer', 
+    'other' => 'Other',
 ];
 $statusStyles = [
     'completed' => 'bg-emerald-50 text-emerald-700',
@@ -129,7 +119,7 @@ ob_start();
         class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
         <i class="ti ti-filter"></i> Filter <i class="ti ti-chevron-down text-xs"></i>
       </button>
-      <div id="paymentFilterMenu" class="hidden absolute left-0 sm:left-auto sm:right-0 mt-1 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-4">
+      <div id="paymentFilterMenu" class="hidden absolute left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-0 mt-1 w-72 sm:w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-4">
         <form id="paymentFilterForm">
           <div class="space-y-4">
             <div>
@@ -167,15 +157,12 @@ ob_start();
 </div>
 
 <!-- Stat cards -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 shrink-0">
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 shrink-0">
   <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
     <span class="w-11 h-11 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i class="ti ti-file-invoice text-lg"></i></span>
     <div>
       <p class="text-sm text-gray-500">Total Revenue</p>
-      <p class="text-2xl font-bold text-gray-900"><?= formatMoney($totalRevenue) ?></p>
-      <p class="text-xs <?= $revenueTrend >= 0 ? 'text-emerald-600' : 'text-red-600' ?> mt-1">
-        <i class="ti ti-trending-<?= $revenueTrend >= 0 ? 'up' : 'down' ?>"></i> <?= abs($revenueTrend) ?>% from last month
-      </p>
+      <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= formatMoney($totalRevenue) ?></p>
     </div>
   </div>
 
@@ -183,8 +170,7 @@ ob_start();
     <span class="w-11 h-11 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0"><i class="ti ti-clock-hour-4 text-lg"></i></span>
     <div>
       <p class="text-sm text-gray-500">Pending Payments</p>
-      <p class="text-2xl font-bold text-gray-900"><?= number_format($pendingCount) ?></p>
-      <p class="text-xs text-gray-400 mt-1">Waiting for approval</p>
+      <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= formatMoney($pendingPayment) ?></p>
     </div>
   </div>
 
@@ -192,17 +178,7 @@ ob_start();
     <span class="w-11 h-11 rounded-lg bg-red-50 text-red-500 flex items-center justify-center shrink-0"><i class="ti ti-arrow-back-up text-lg"></i></span>
     <div>
       <p class="text-sm text-gray-500">Refunds Issued</p>
-      <p class="text-2xl font-bold text-gray-900"><?= formatMoney($refundsIssued) ?></p>
-      <p class="text-xs text-red-500 mt-1"><i class="ti ti-trending-up"></i> <?= abs($refundsTrend) ?>% this week</p>
-    </div>
-  </div>
-
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
-    <span class="w-11 h-11 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><i class="ti ti-circle-check text-lg"></i></span>
-    <div>
-      <p class="text-sm text-gray-500">Success Rate (%)</p>
-      <p class="text-2xl font-bold text-gray-900"><?= $successRate ?>%</p>
-      <p class="text-xs text-emerald-600 mt-1">Excellent performance</p>
+      <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= formatMoney($refundsIssued) ?></p>
     </div>
   </div>
 </div>
@@ -241,7 +217,6 @@ ob_start();
         <td class="px-5 py-4">
           <div class="flex items-center justify-center gap-3 text-gray-400">
             <button type="button" data-view-payment title="View" class="hover:text-brand"><i class="ti ti-eye"></i></button>
-            <a href="receipt.php?id=<?= $p['payment_id'] ?>" target="_blank" title="Digital Receipt" class="hover:text-brand"><i class="ti ti-file-text"></i></a>
             <button type="button" data-delete-payment="<?= $p['payment_id'] ?>" title="Delete" class="hover:text-red-600"><i class="ti ti-trash"></i></button>
           </div>
         </td>
@@ -257,7 +232,7 @@ ob_start();
 <!-- Mobile Cards -->
 <div class="grid grid-cols-1 gap-4 lg:hidden mb-6">
   <?php foreach ($payments as $i => $p): ?>
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 relative" data-payment='<?= h(json_encode($p)) ?>'>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 relative" data-payment='<?= h(json_encode($p)) ?>'>
     <div class="flex justify-between items-start mb-3">
       <div>
         <span class="inline-block <?= $statusStyles[$p['status']] ?? 'bg-gray-100 text-gray-600' ?> text-xs font-medium px-2 py-0.5 rounded-full mb-1">
@@ -267,7 +242,6 @@ ob_start();
       </div>
       <div class="flex items-center gap-3 text-gray-400">
         <button type="button" data-view-payment title="View" class="hover:text-brand"><i class="ti ti-eye"></i></button>
-        <a href="receipt.php?id=<?= $p['payment_id'] ?>" target="_blank" title="Digital Receipt" class="hover:text-brand"><i class="ti ti-file-text"></i></a>
         <button type="button" data-delete-payment="<?= $p['payment_id'] ?>" title="Delete" class="hover:text-red-600"><i class="ti ti-trash"></i></button>
       </div>
     </div>

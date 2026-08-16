@@ -466,3 +466,25 @@ Array
     [items] => [{"product_id":null,"product_name":"Waste","sku":"","quantity":1,"unit_price":100}]
 )
 
+POST Data:
+Array
+(
+    [customer_id] => 10
+    [full_name] => ZEESHAN MALIK CUSIT
+    [instagram_handle] => 
+    [country] => Pakistan
+    [order_date] => 2026-08-16
+    [expected_delivery_date] => 
+    [status] => pending
+    [shipping_weight_kg] => 
+    [cost_of_goods] => 1000
+    [shipping_cost] => 0
+    [payment_status] => pending
+    [amount_paid] => 
+    [items] => [{"product_id":null,"product_name":"dress","sku":"","quantity":1,"unit_price":2000}]
+)
+
+FILES:
+Array
+(
+)

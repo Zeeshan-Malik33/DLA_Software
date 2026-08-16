@@ -65,7 +65,7 @@ $isFilterApplied = ($category !== '' || $dateFrom !== '' || $dateTo !== '');
 ob_start();
 ?>
 
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-full pb-80 lg:pb-10">
 
 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 shrink-0">
   <div>
@@ -96,7 +96,7 @@ ob_start();
         class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
         <i class="ti ti-filter"></i> Filter <i class="ti ti-chevron-down text-xs"></i>
       </button>
-      <div id="expenseFilterMenu" class="hidden absolute left-0 sm:left-auto sm:right-0 mt-1 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-4">
+      <div id="expenseFilterMenu" class="hidden absolute left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-0 mt-1 w-72 sm:w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-4">
         <form id="expenseFilterForm">
           <div class="space-y-4">
             <div>
@@ -138,25 +138,37 @@ ob_start();
 
 <!-- Stat cards -->
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 shrink-0">
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-    <p class="text-sm text-gray-500 mb-2">Total (filtered)</p>
-    <p class="text-2xl font-bold text-gray-900"><?= formatMoney($filteredStats['total']) ?></p>
-    <p class="text-xs text-gray-400 mt-2"><?= (int) $filteredStats['cnt'] ?> expense<?= $filteredStats['cnt'] == 1 ? '' : 's' ?></p>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
+    <span class="w-11 h-11 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i class="ti ti-calculator text-lg"></i></span>
+    <div>
+      <p class="text-sm text-gray-500">Total (filtered)</p>
+      <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= formatMoney($filteredStats['total']) ?></p>
+      <p class="text-xs text-gray-400 mt-1"><?= (int) $filteredStats['cnt'] ?> expense<?= $filteredStats['cnt'] == 1 ? '' : 's' ?></p>
+    </div>
   </div>
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-    <p class="text-sm text-gray-500 mb-2">This Month</p>
-    <p class="text-2xl font-bold text-gray-900"><?= formatMoney($thisMonthTotal) ?></p>
-    <p class="text-xs text-gray-400 mt-2"><?= date('F Y') ?></p>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
+    <span class="w-11 h-11 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"><i class="ti ti-calendar-month text-lg"></i></span>
+    <div>
+      <p class="text-sm text-gray-500">This Month</p>
+      <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= formatMoney($thisMonthTotal) ?></p>
+      <p class="text-xs text-gray-400 mt-1"><?= date('F Y') ?></p>
+    </div>
   </div>
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-    <p class="text-sm text-gray-500 mb-2">This Year</p>
-    <p class="text-2xl font-bold text-gray-900"><?= formatMoney($thisYearTotal) ?></p>
-    <p class="text-xs text-gray-400 mt-2"><?= date('Y') ?></p>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
+    <span class="w-11 h-11 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0"><i class="ti ti-calendar text-lg"></i></span>
+    <div>
+      <p class="text-sm text-gray-500">This Year</p>
+      <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= formatMoney($thisYearTotal) ?></p>
+      <p class="text-xs text-gray-400 mt-1"><?= date('Y') ?></p>
+    </div>
   </div>
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-    <p class="text-sm text-gray-500 mb-2">Top Category</p>
-    <p class="text-2xl font-bold text-gray-900"><?= $topCategory ? h($topCategory['category']) : '—' ?></p>
-    <p class="text-xs text-gray-400 mt-2"><?= $topCategory ? formatMoney($topCategory['total']) : 'No data' ?></p>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
+    <span class="w-11 h-11 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><i class="ti ti-chart-pie text-lg"></i></span>
+    <div>
+      <p class="text-sm text-gray-500">Top Category</p>
+      <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= $topCategory ? h($topCategory['category']) : '—' ?></p>
+      <p class="text-xs text-gray-400 mt-1"><?= $topCategory ? formatMoney($topCategory['total']) : 'No data' ?></p>
+    </div>
   </div>
 </div>
 
@@ -205,7 +217,7 @@ ob_start();
 <!-- Mobile Cards -->
 <div class="grid grid-cols-1 gap-4 lg:hidden mb-6">
   <?php foreach ($expenses as $i => $e): ?>
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 relative">
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 relative">
     <div class="flex justify-between items-start mb-3">
       <div>
         <span class="inline-block <?= expenseCategoryColor($e['category']) ?> text-xs font-medium px-2 py-0.5 rounded-full mb-1">
