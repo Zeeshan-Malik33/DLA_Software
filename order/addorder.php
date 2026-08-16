@@ -12,13 +12,12 @@ $pageTitle  = 'Add Order';
 // ---------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
-    file_put_contents('debug_order.txt', "POST Data:\n" . print_r($_POST, true) . "\n", FILE_APPEND);
+    file_put_contents('debug_order.txt', "POST Data:\n" . print_r($_POST, true) . "\nFILES:\n" . print_r($_FILES, true), FILE_APPEND);
 
     $customerId   = (int) ($_POST['customer_id'] ?? 0);
     $fullName     = trim($_POST['full_name'] ?? '');
     $instagram    = trim($_POST['instagram_handle'] ?? '');
     $country      = trim($_POST['country'] ?? '');
-    $city         = trim($_POST['city'] ?? '');
     $orderDate    = trim($_POST['order_date'] ?? '');
     $expectedDate = trim($_POST['expected_delivery_date'] ?? '') ?: null;
     $shippingCost = (float) ($_POST['shipping_cost'] ?? 0);
@@ -30,8 +29,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $errors = [];
     if ($fullName === '' && $customerId === 0) $errors['full_name'] = 'Full name is required.';
-    if ($instagram === '' && $customerId === 0) $errors['instagram_handle'] = 'Instagram username is required.';
-    if ($country === '')   $errors['country'] = 'Country is required.';
+    if ($customerId === 0 && $fullName !== '') {
+        $stmt = $pdo->prepare('SELECT COUNT(*) FROM customers WHERE full_name = ?');
+        $stmt->execute([$fullName]);
+        if ($stmt->fetchColumn() > 0) {
+            $errors['full_name'] = 'A customer with this name already exists. Please select them from existing customers.';
+        }
+    }
     if ($orderDate === '') $errors['order_date'] = 'Order date is required.';
     if (empty($items))     $errors['items'] = 'Add at least one product to the order.';
 
@@ -45,15 +49,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // --- Find or create the customer ---
         if ($customerId === 0) {
-            $stmt = $pdo->prepare('SELECT customer_id FROM customers WHERE instagram_handle = ? AND instagram_handle != "" LIMIT 1');
-            $stmt->execute([$instagram]);
-            $existing = $stmt->fetch();
+            if ($instagram !== '') {
+                $stmt = $pdo->prepare('SELECT customer_id FROM customers WHERE instagram_handle = ? AND instagram_handle != "" LIMIT 1');
+                $stmt->execute([$instagram]);
+                $existing = $stmt->fetch();
+            } else {
+                $existing = false;
+            }
 
             if ($existing) {
                 $customerId = $existing['customer_id'];
             } else {
-                $stmt = $pdo->prepare('INSERT INTO customers (full_name, instagram_handle, country, city) VALUES (?, ?, ?, ?)');
-                $stmt->execute([$fullName, $instagram, $country, $city]);
+                $stmt = $pdo->prepare('INSERT INTO customers (full_name, instagram_handle, country) VALUES (?, ?, ?)');
+                $stmt->execute([$fullName, $instagram, $country]);
                 $customerId = $pdo->lastInsertId();
             }
         }
@@ -118,32 +126,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $productDescription = implode(', ', array_column($cleanItems, 'name'));
 
-        // --- Create the order ---
+        $stmtId = $pdo->query('
+            SELECT COALESCE(
+                (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM orders WHERE order_id = 1)),
+                (SELECT MIN(o1.order_id + 1)
+                 FROM orders o1
+                 LEFT JOIN orders o2 ON o1.order_id + 1 = o2.order_id
+                 WHERE o2.order_id IS NULL)
+            ) AS next_id
+        ');
+        $nextId = $stmtId->fetchColumn();
+
+        $status = $_POST['status'] ?? 'pending';
         $stmt = $pdo->prepare('
             INSERT INTO orders
-                (customer_id, created_by, order_date, expected_delivery_date, status,
+                (order_id, customer_id, created_by, order_date, expected_delivery_date, status,
                  product_description, total_amount, currency, amount_paid,
                  cost_of_goods, shipping_cost, shipping_weight_kg)
-            VALUES (?, ?, ?, ?, "pending", ?, ?, "PKR", ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, "PKR", ?, ?, ?, ?)
         ');
         $stmt->execute([
-            $customerId, $_SESSION['user_id'], $orderDate, $expectedDate,
+            $nextId, $customerId, $_SESSION['user_id'], $orderDate, $expectedDate, $status,
             $productDescription, $grandTotal, $amountPaid, $costOfGoods, $shippingCost, $shippingWeight
         ]);
-        $orderId = $pdo->lastInsertId();
+        $orderId = $nextId;
 
         // --- Line items ---
         $stmt = $pdo->prepare('
-            INSERT INTO order_items (order_id, product_id, product_name, sku, quantity, unit_price)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO order_items (order_id, product_id, product_name, sku, quantity, unit_price, item_image)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ');
-        foreach ($cleanItems as $item) {
-            $stmt->execute([$orderId, $item['productId'], $item['name'], $item['sku'], $item['qty'], $item['unitPrice']]);
+        foreach ($cleanItems as $idx => $item) {
+            $imagePath = null;
+            $fileKey = "items_image_$idx";
+            if (isset($_FILES[$fileKey]) && $_FILES[$fileKey]['error'] === UPLOAD_ERR_OK) {
+                $tmpName = $_FILES[$fileKey]['tmp_name'];
+                $ext = strtolower(pathinfo($_FILES[$fileKey]['name'], PATHINFO_EXTENSION));
+                $ext = $ext ? ".$ext" : '';
+                $itemNum = $idx + 1;
+                $fileName = "ord-{$orderId}-item-{$itemNum}-img" . $ext;
+                $uploadDir = '../assets/uploads/order_items/';
+                if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+                if (move_uploaded_file($tmpName, $uploadDir . $fileName)) {
+                    $imagePath = 'assets/uploads/order_items/' . $fileName;
+                }
+            }
+            $stmt->execute([$orderId, $item['productId'], $item['name'], $item['sku'], $item['qty'], $item['unitPrice'], $imagePath]);
         }
 
         // --- Status history ---
-        $stmt = $pdo->prepare('INSERT INTO order_status_history (order_id, status, changed_by) VALUES (?, "pending", ?)');
-        $stmt->execute([$orderId, $_SESSION['user_id']]);
+        $stmt = $pdo->prepare('INSERT INTO order_status_history (order_id, status, changed_by) VALUES (?, ?, ?)');
+        $stmt->execute([$orderId, $status, $_SESSION['user_id']]);
 
         // --- Initial payment, if any ---
         if ($amountPaid > 0) {
@@ -188,7 +221,7 @@ ob_start();
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-semibold text-gray-900">Customer Information</h3>
-        <button type="button" id="quickAddToggle" class="text-sm text-blue-600 hover:underline flex items-center gap-1">
+        <button type="button" id="quickAddToggle" class="inline-flex items-center gap-1 rounded-full border border-blue-200 text-blue-600 text-sm font-medium px-3 py-1.5 hover:bg-blue-50">
           <i class="ti ti-plus"></i> Quick Add
         </button>
       </div>
@@ -208,45 +241,21 @@ ob_start();
           <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="full_name"></p>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Instagram Username <span class="text-red-500">*</span></label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Instagram Username</label>
           <input type="text" name="instagram_handle" id="instagramField" placeholder="Enter instagram handle..."
                  class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
           <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="instagram_handle"></p>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Country <span class="text-red-500">*</span></label>
-          <select name="country" id="countrySelect"
-                  class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
-            <option value="">Country</option>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+          <input type="text" name="country" id="countrySelect" list="countryList" placeholder="Select or type country..."
+                 class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
+          <datalist id="countryList">
             <?php foreach ($COUNTRIES as $c): ?>
-              <option value="<?= h($c) ?>"><?= h($c) ?></option>
+              <option value="<?= h($c) ?>"></option>
             <?php endforeach; ?>
-          </select>
+          </datalist>
           <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="country"></p>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
-          <select name="city" id="citySelect"
-                  class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
-            <option value="">City</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-      <h3 class="font-semibold text-gray-900 mb-4">Order Details</h3>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Order Date <span class="text-red-500">*</span></label>
-          <input type="date" name="order_date" value="<?= date('Y-m-d') ?>"
-                 class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
-          <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="order_date"></p>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Expected Delivery</label>
-          <input type="date" name="expected_delivery_date"
-                 class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
         </div>
       </div>
     </div>
@@ -261,11 +270,11 @@ ob_start();
       <p class="field-error text-xs text-red-600 mb-2 hidden" data-field="items"></p>
 
       <div class="overflow-x-auto">
-        <table class="w-full text-sm min-w-[560px]">
+        <table class="w-full text-sm">
           <thead>
             <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-100">
+              <th class="pb-2 font-medium">Image</th>
               <th class="pb-2 font-medium">Product Name</th>
-              <th class="pb-2 font-medium">SKU</th>
               <th class="pb-2 font-medium text-center">Quantity</th>
               <th class="pb-2 font-medium text-right">Unit Price</th>
               <th class="pb-2 font-medium text-right">Total</th>
@@ -274,6 +283,32 @@ ob_start();
           </thead>
           <tbody id="productRows" class="divide-y divide-gray-100"></tbody>
         </table>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+      <h3 class="font-semibold text-gray-900 mb-4">Order Details</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-5">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Order Date <span class="text-red-500">*</span></label>
+          <input type="date" name="order_date" value="<?= date('Y-m-d') ?>"
+                 class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
+          <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="order_date"></p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Expected Delivery</label>
+          <input type="date" name="expected_delivery_date"
+                 class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Order Status</label>
+          <select name="status" class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
+            <option value="pending" selected>Pending</option>
+            <option value="processing">Processing</option>
+            <option value="shipped">Shipped</option>
+            <option value="delivered">Delivered</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -295,7 +330,7 @@ ob_start();
         </div>
         <div class="flex justify-between items-center text-gray-600">
           <span>Cost of Goods</span>
-          <input type="number" name="cost_of_goods" placeholder="Auto" min="0" step="0.01"
+          <input type="number" name="cost_of_goods" placeholder="e.g. 500" min="0" step="0.01"
                  class="w-28 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand">
         </div>
         <div class="flex justify-between items-center text-gray-600">
@@ -309,6 +344,7 @@ ob_start();
         <span id="sumGrandTotal" class="font-bold text-brand text-lg">PKR 0</span>
       </div>
     </div>
+
 
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
       <h3 class="font-semibold text-gray-900 mb-3">Payment Status</h3>

@@ -6,42 +6,60 @@ require '../includes/functions.php';
 $activePage = 'orders';
 $pageTitle  = 'Order Management';
 
+$status      = $_GET['status'] ?? '';
+$customerName = $_GET['customer_name'] ?? '';
+$dateFrom    = $_GET['date_from'] ?? '';
+$dateTo      = $_GET['date_to'] ?? '';
+
+$conditions = [];
+$params = [];
+
+if ($status !== '') { $conditions[] = 'o.status = ?'; $params[] = $status; }
+if ($customerName !== '') { $conditions[] = 'c.full_name LIKE ?'; $params[] = "%$customerName%"; }
+if ($dateFrom !== '') { $conditions[] = 'o.order_date >= ?'; $params[] = $dateFrom; }
+if ($dateTo !== '') { $conditions[] = 'o.order_date <= ?'; $params[] = $dateTo; }
+
+$where = '';
+if (count($conditions) > 0) {
+    $where = 'WHERE ' . implode(' AND ', $conditions);
+}
+
 // ---------------------------------------------------------
 // Orders list
 // ---------------------------------------------------------
-$orders = $pdo->query("
-    SELECT o.order_id, o.order_date, o.status, o.total_amount, o.currency,
+$stmt = $pdo->prepare("
+    SELECT o.order_id, o.order_date, o.status, o.total_amount, o.currency, o.amount_paid, o.remaining_balance,
            c.full_name,
            (SELECT COALESCE(SUM(quantity), 0) FROM order_items WHERE order_id = o.order_id) AS item_count
     FROM orders o
     JOIN customers c ON c.customer_id = o.customer_id
+    $where
     ORDER BY o.created_at DESC
     LIMIT 50
-")->fetchAll();
+");
+$stmt->execute($params);
+$orders = $stmt->fetchAll();
+
+$isFilterApplied = ($status !== '' || $customerName !== '' || $dateFrom !== '' || $dateTo !== '');
 
 // ---------------------------------------------------------
 // Stat cards
 // ---------------------------------------------------------
-$totalOrders = (int) $pdo->query("SELECT COUNT(*) FROM orders")->fetchColumn();
+$stmtTotal = $pdo->prepare("SELECT COUNT(*) FROM orders o JOIN customers c ON c.customer_id = o.customer_id $where");
+$stmtTotal->execute($params);
+$totalOrders = (int) $stmtTotal->fetchColumn();
 
-$last30  = (int) $pdo->query("SELECT COUNT(*) FROM orders WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)")->fetchColumn();
-$prev30  = (int) $pdo->query("SELECT COUNT(*) FROM orders WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 60 DAY) AND order_date < DATE_SUB(CURDATE(), INTERVAL 30 DAY)")->fetchColumn();
-$ordersTrend = $prev30 > 0 ? round((($last30 - $prev30) / $prev30) * 100) : ($last30 > 0 ? 100 : 0);
+$stmtPending = $pdo->prepare("SELECT COUNT(*) FROM orders o JOIN customers c ON c.customer_id = o.customer_id $where " . ($where ? "AND o.status = 'pending'" : "WHERE o.status = 'pending'"));
+$stmtPending->execute($params);
+$pendingOrders = (int) $stmtPending->fetchColumn();
 
-$pendingShipments = (int) $pdo->query("SELECT COUNT(*) FROM orders WHERE status IN ('pending','processing','shipped')")->fetchColumn();
-$pendingPct = $totalOrders > 0 ? round(($pendingShipments / $totalOrders) * 100) : 0;
+$stmtShipping = $pdo->prepare("SELECT COUNT(*) FROM orders o JOIN customers c ON c.customer_id = o.customer_id $where " . ($where ? "AND o.status IN ('processing', 'shipped')" : "WHERE o.status IN ('processing', 'shipped')"));
+$stmtShipping->execute($params);
+$shippingOrders = (int) $stmtShipping->fetchColumn();
 
-$avgOrderValue = (float) $pdo->query("SELECT COALESCE(AVG(total_amount), 0) FROM orders")->fetchColumn();
-$avgLast30 = (float) $pdo->query("SELECT COALESCE(AVG(total_amount), 0) FROM orders WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)")->fetchColumn();
-$avgPrev30 = (float) $pdo->query("SELECT COALESCE(AVG(total_amount), 0) FROM orders WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 60 DAY) AND order_date < DATE_SUB(CURDATE(), INTERVAL 30 DAY)")->fetchColumn();
-$avgTrend = $avgPrev30 > 0 ? round((($avgLast30 - $avgPrev30) / $avgPrev30) * 100) : 0;
-
-$deliveredToday = $pdo->query("
-    SELECT c.full_name FROM orders o
-    JOIN customers c ON c.customer_id = o.customer_id
-    WHERE o.status = 'delivered' AND o.actual_delivery_date = CURDATE()
-")->fetchAll();
-$deliveredTodayCount = count($deliveredToday);
+$stmtDelivered = $pdo->prepare("SELECT COUNT(*) FROM orders o JOIN customers c ON c.customer_id = o.customer_id $where " . ($where ? "AND o.status = 'delivered'" : "WHERE o.status = 'delivered'"));
+$stmtDelivered->execute($params);
+$deliveredOrders = (int) $stmtDelivered->fetchColumn();
 
 ob_start();
 ?>
@@ -54,82 +72,111 @@ ob_start();
     <p class="text-sm text-gray-500 mt-1">Review, track, and manage customer orders across all channels.</p>
   </div>
   <div class="flex flex-wrap gap-2">
-    <a href="export.php"
-       class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
-      <i class="ti ti-download"></i> Export
-    </a>
+    <?php if ($isFilterApplied): ?>
+      <a href="listorder.php" data-spa
+         class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
+        <i class="ti ti-refresh"></i> Reset
+      </a>
+    <?php endif; ?>
+
     <a href="addorder.php" data-spa
        class="inline-flex items-center gap-2 rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-4 py-2">
       <i class="ti ti-plus"></i> Add Order
     </a>
+    
+    <div class="relative">
+      <button type="button" id="orderFilterToggle"
+              class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
+        <i class="ti ti-filter"></i> Filter <i class="ti ti-chevron-down text-xs"></i>
+      </button>
+      <div id="orderFilterMenu" class="hidden absolute left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-0 mt-1 w-72 sm:w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-4">
+        <form id="orderFilterForm">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Status</label>
+              <select name="status" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+                <option value="">All Statuses</option>
+                <option value="pending" <?= $status === 'pending' ? 'selected' : '' ?>>Pending</option>
+                <option value="processing" <?= $status === 'processing' ? 'selected' : '' ?>>Processing</option>
+                <option value="shipped" <?= $status === 'shipped' ? 'selected' : '' ?>>Shipped</option>
+                <option value="delivered" <?= $status === 'delivered' ? 'selected' : '' ?>>Delivered</option>
+                <option value="cancelled" <?= $status === 'cancelled' ? 'selected' : '' ?>>Cancelled</option>
+                <option value="refunded" <?= $status === 'refunded' ? 'selected' : '' ?>>Refunded</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Customer Name</label>
+              <input type="text" name="customer_name" value="<?= h($customerName) ?>" placeholder="Search by name..."
+                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Date From</label>
+                <input type="date" name="date_from" value="<?= h($dateFrom) ?>"
+                       class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Date To</label>
+                <input type="date" name="date_to" value="<?= h($dateTo) ?>"
+                       class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+              </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+              <button type="button" id="resetOrderFiltersBtn"
+                      class="rounded-md border border-gray-300 bg-white text-xs font-medium px-3 py-1.5 text-gray-700 hover:bg-gray-50">Reset</button>
+              <button type="submit"
+                      class="inline-flex items-center gap-1 rounded-md bg-brand hover:bg-brand-light text-white text-xs font-medium px-3 py-1.5">
+                Apply
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </div>
 
 <!-- Stat cards -->
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 shrink-0">
 
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-    <div class="flex items-start justify-between mb-3">
-      <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Total Orders</p>
-      <span class="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center"><i class="ti ti-clipboard-list"></i></span>
-    </div>
-    <div class="flex items-baseline gap-2">
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center justify-between">
+    <div>
+      <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-1">Total Orders</p>
       <p class="text-2xl font-bold text-gray-900"><?= number_format($totalOrders) ?></p>
-      <span class="text-xs font-medium <?= $ordersTrend >= 0 ? 'text-emerald-600' : 'text-red-600' ?>">
-        <i class="ti ti-trending-<?= $ordersTrend >= 0 ? 'up' : 'down' ?>"></i> <?= abs($ordersTrend) ?>%
-      </span>
     </div>
-    <p class="text-xs text-gray-400 mt-1">vs. last 30 days</p>
+    <span class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+      <i class="ti ti-shopping-cart text-2xl"></i>
+    </span>
   </div>
 
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-    <div class="flex items-start justify-between mb-3">
-      <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Pending Shipments</p>
-      <span class="w-9 h-9 rounded-lg bg-orange-50 text-orange-500 flex items-center justify-center"><i class="ti ti-truck-delivery"></i></span>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center justify-between">
+    <div>
+      <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-1">Pending Orders</p>
+      <p class="text-2xl font-bold text-gray-900"><?= number_format($pendingOrders) ?></p>
     </div>
-    <div class="flex items-baseline gap-2">
-      <p class="text-2xl font-bold text-gray-900"><?= number_format($pendingShipments) ?></p>
-      <span class="text-xs font-medium text-red-500"><i class="ti ti-clock"></i> <?= $pendingPct ?>%</span>
-    </div>
-    <div class="w-full h-1.5 rounded-full bg-gray-100 mt-3 overflow-hidden">
-      <div class="h-full bg-orange-400 rounded-full" style="width: <?= $pendingPct ?>%"></div>
-    </div>
+    <span class="w-12 h-12 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
+      <i class="ti ti-clock-hour-4 text-2xl"></i>
+    </span>
   </div>
 
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-    <div class="flex items-start justify-between mb-3">
-      <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Avg. Order Value</p>
-      <span class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="ti ti-currency-dollar"></i></span>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center justify-between">
+    <div>
+      <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-1">Shipping</p>
+      <p class="text-2xl font-bold text-gray-900"><?= number_format($shippingOrders) ?></p>
     </div>
-    <div class="flex items-baseline gap-2">
-      <p class="text-2xl font-bold text-gray-900"><?= formatMoney($avgOrderValue) ?></p>
-      <span class="text-xs font-medium <?= $avgTrend >= 0 ? 'text-emerald-600' : 'text-red-600' ?>">
-        <i class="ti ti-trending-<?= $avgTrend >= 0 ? 'up' : 'down' ?>"></i> <?= abs($avgTrend) ?>%
-      </span>
-    </div>
-    <p class="text-xs text-gray-400 mt-1">Steady growth this quarter</p>
+    <span class="w-12 h-12 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center shrink-0">
+      <i class="ti ti-truck-delivery text-2xl"></i>
+    </span>
   </div>
 
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-    <div class="flex items-start justify-between mb-3">
-      <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Delivered Today</p>
-      <span class="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center"><i class="ti ti-check"></i></span>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center justify-between">
+    <div>
+      <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-1">Delivered</p>
+      <p class="text-2xl font-bold text-gray-900"><?= number_format($deliveredOrders) ?></p>
     </div>
-    <p class="text-2xl font-bold text-gray-900 mb-2"><?= number_format($deliveredTodayCount) ?></p>
-    <?php if ($deliveredTodayCount > 0): ?>
-    <div class="flex items-center -space-x-2">
-      <?php foreach (array_slice($deliveredToday, 0, 3) as $d): ?>
-        <span class="w-7 h-7 rounded-full <?= avatarColor($d['full_name']) ?> text-white text-[10px] font-semibold flex items-center justify-center ring-2 ring-white">
-          <?= h(initials($d['full_name'])) ?>
-        </span>
-      <?php endforeach; ?>
-      <?php if ($deliveredTodayCount > 3): ?>
-        <span class="w-7 h-7 rounded-full bg-gray-100 text-gray-600 text-[10px] font-semibold flex items-center justify-center ring-2 ring-white">
-          +<?= $deliveredTodayCount - 3 ?>
-        </span>
-      <?php endif; ?>
-    </div>
-    <?php endif; ?>
+    <span class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+      <i class="ti ti-circle-check text-2xl"></i>
+    </span>
   </div>
 
 </div>
@@ -156,7 +203,7 @@ ob_start();
         <td class="px-5 py-4 text-gray-400"><?= $i + 1 ?></td>
         <td class="px-5 py-4">
           <a href="vieworder.php?id=<?= $order['order_id'] ?>" data-spa class="font-semibold text-brand hover:underline">
-            #ORD-<?= str_pad($order['order_id'], 5, '0', STR_PAD_LEFT) ?>
+            #ORD-<?= (int)$order['order_id'] ?>
           </a>
         </td>
         <td class="px-5 py-4 text-gray-500 whitespace-nowrap"><?= date('M j, Y', strtotime($order['order_date'])) ?></td>

@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $shippingCost = (float) ($_POST['shipping_cost'] ?? 0);
     $amountPaid   = (float) ($_POST['amount_paid'] ?? 0);
     $items        = json_decode($_POST['items'] ?? '[]', true) ?: [];
+    $manualCostOfGoods = isset($_POST['cost_of_goods']) && $_POST['cost_of_goods'] !== '' ? (float) $_POST['cost_of_goods'] : null;
 
     $errors = [];
     if ($orderDate === '') $errors['order_date'] = 'Order date is required.';
@@ -70,6 +71,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $cleanItems[] = compact('productId', 'name', 'sku', 'qty', 'unitPrice');
         }
 
+        if ($manualCostOfGoods !== null) {
+            $costOfGoods = $manualCostOfGoods;
+        }
+
         $grandTotal = round($subtotal + $shippingCost, 2);
         $productDescription = implode(', ', array_column($cleanItems, 'name'));
 
@@ -96,11 +101,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // Get existing images before deleting
+        $stmt = $pdo->prepare('SELECT product_name, item_image FROM order_items WHERE order_id = ? AND item_image IS NOT NULL');
+        $stmt->execute([$id]);
+        $existingImages = $stmt->fetchAll(PDO::FETCH_KEY_PAIR); // map product_name => item_image
+
         // Replace line items with the edited set
         $pdo->prepare('DELETE FROM order_items WHERE order_id = ?')->execute([$id]);
-        $stmt = $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, sku, quantity, unit_price) VALUES (?, ?, ?, ?, ?, ?)');
-        foreach ($cleanItems as $item) {
-            $stmt->execute([$id, $item['productId'], $item['name'], $item['sku'], $item['qty'], $item['unitPrice']]);
+        
+        $stmt = $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, sku, quantity, unit_price, item_image) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        foreach ($cleanItems as $idx => $item) {
+            $imagePath = $existingImages[$item['name']] ?? null;
+            $fileKey = "items_image_$idx";
+            if (isset($_FILES[$fileKey]) && $_FILES[$fileKey]['error'] === UPLOAD_ERR_OK) {
+                $tmpName = $_FILES[$fileKey]['tmp_name'];
+                $ext = strtolower(pathinfo($_FILES[$fileKey]['name'], PATHINFO_EXTENSION));
+                $ext = $ext ? ".$ext" : '';
+                $itemNum = $idx + 1;
+                $fileName = "ord-{$id}-item-{$itemNum}-img" . $ext;
+                $uploadDir = '../assets/uploads/order_items/';
+                if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+                if (move_uploaded_file($tmpName, $uploadDir . $fileName)) {
+                    $imagePath = 'assets/uploads/order_items/' . $fileName;
+                }
+            }
+            $stmt->execute([$id, $item['productId'], $item['name'], $item['sku'], $item['qty'], $item['unitPrice'], $imagePath]);
         }
 
         $pdo->commit();
@@ -121,7 +146,7 @@ $order = $stmt->fetch();
 
 $items = [];
 if ($order) {
-    $stmt = $pdo->prepare('SELECT product_id, product_name, sku, quantity, unit_price FROM order_items WHERE order_id = ?');
+    $stmt = $pdo->prepare('SELECT product_id, product_name, sku, quantity, unit_price, item_image FROM order_items WHERE order_id = ?');
     $stmt->execute([$id]);
     $items = $stmt->fetchAll();
 }
@@ -138,7 +163,7 @@ else:
 ?>
 
 <div class="mb-6">
-  <h2 class="text-2xl font-bold text-gray-900">Edit Order #ORD-<?= str_pad($order['order_id'], 5, '0', STR_PAD_LEFT) ?></h2>
+  <h2 class="text-2xl font-bold text-gray-900">Edit Order #ORD-<?= (int)$order['order_id'] ?></h2>
   <p class="text-sm text-gray-400 mt-1">
     <a href="../dashboard/index.php" data-spa data-page="dashboard" class="hover:text-brand">Dashboard</a>
     <span class="mx-1">&gt;</span>
@@ -169,6 +194,30 @@ else:
     </div>
 
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-gray-900">Product Selection</h3>
+        <button type="button" id="addProductRow" class="inline-flex items-center gap-1 rounded-full border border-blue-200 text-blue-600 text-sm font-medium px-3 py-1.5 hover:bg-blue-50">
+          <i class="ti ti-plus"></i> Add Product
+        </button>
+      </div>
+      <p class="field-error text-xs text-red-600 mb-2 hidden" data-field="items"></p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-100">
+              <th class="pb-2 font-medium">Product Name</th>
+              <th class="pb-2 font-medium text-center">Quantity</th>
+              <th class="pb-2 font-medium text-right">Unit Price</th>
+              <th class="pb-2 font-medium text-right">Total</th>
+              <th class="pb-2"></th>
+            </tr>
+          </thead>
+          <tbody id="productRows" data-initial='<?= h(json_encode($items)) ?>' class="divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
       <h3 class="font-semibold text-gray-900 mb-4">Order Details</h3>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-5">
         <div>
@@ -193,31 +242,6 @@ else:
       </div>
     </div>
 
-    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="font-semibold text-gray-900">Product Selection</h3>
-        <button type="button" id="addProductRow" class="inline-flex items-center gap-1 rounded-full border border-blue-200 text-blue-600 text-sm font-medium px-3 py-1.5 hover:bg-blue-50">
-          <i class="ti ti-plus"></i> Add Product
-        </button>
-      </div>
-      <p class="field-error text-xs text-red-600 mb-2 hidden" data-field="items"></p>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm min-w-[560px]">
-          <thead>
-            <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-100">
-              <th class="pb-2 font-medium">Product Name</th>
-              <th class="pb-2 font-medium">SKU</th>
-              <th class="pb-2 font-medium text-center">Quantity</th>
-              <th class="pb-2 font-medium text-right">Unit Price</th>
-              <th class="pb-2 font-medium text-right">Total</th>
-              <th class="pb-2"></th>
-            </tr>
-          </thead>
-          <tbody id="productRows" data-initial='<?= h(json_encode($items)) ?>' class="divide-y divide-gray-100"></tbody>
-        </table>
-      </div>
-    </div>
-
   </div>
 
   <div class="space-y-4 lg:sticky lg:top-6">
@@ -226,6 +250,11 @@ else:
       <h3 class="font-semibold text-gray-900 mb-4">Order Summary</h3>
       <div class="space-y-3 text-sm">
         <div class="flex justify-between text-gray-600"><span>Subtotal</span> <span id="sumSubtotal">PKR 0</span></div>
+        <div class="flex justify-between items-center text-gray-600">
+          <span>Cost of Goods</span>
+          <input type="number" name="cost_of_goods" placeholder="e.g. 500" value="<?= h($order['cost_of_goods']) ?>" min="0" step="0.01"
+                 class="w-28 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand">
+        </div>
         <div class="flex justify-between items-center text-gray-600">
           <span>Shipping</span>
           <input type="number" name="shipping_cost" id="shippingInput" value="<?= h($order['shipping_cost']) ?>" min="0" step="0.01"
@@ -238,19 +267,19 @@ else:
       </div>
     </div>
 
-    <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-5 py-3">
-      <i class="ti ti-circle-check"></i> Save Changes
-    </button>
-    <a href="vieworder.php?id=<?= $order['order_id'] ?>" data-spa class="block text-center rounded-full border border-gray-300 bg-white text-sm font-medium px-5 py-3 text-gray-700 hover:bg-gray-50">
-      Cancel
-    </a>
-
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
       <h3 class="font-semibold text-gray-900 mb-3">Amount Paid</h3>
       <input type="number" name="amount_paid" value="<?= h($order['amount_paid']) ?>" min="0" step="0.01"
              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
       <p class="text-xs text-gray-400 mt-2">Adjust directly. For itemized installment history, use Payment Management.</p>
     </div>
+
+    <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-5 py-3">
+      <i class="ti ti-circle-check"></i> Save Changes
+    </button>
+    <a href="vieworder.php?id=<?= $order['order_id'] ?>" data-spa class="block text-center rounded-full border border-gray-300 bg-white text-sm font-medium px-5 py-3 text-gray-700 hover:bg-gray-50">
+      Cancel
+    </a>
 
   </div>
 

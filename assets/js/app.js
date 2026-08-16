@@ -159,6 +159,8 @@ function initPageScripts() {
   initDashboardCharts();
   initDashboardRangeForm();
   initAddOrderForm();
+  initOrderFilterForm();
+  initOrderFilterDropdownToggle();
   initOrderDeleteButtons();
   initAddPaymentForm();
   initPaymentFilterForm();
@@ -451,7 +453,6 @@ function initAddOrderForm() {
     rowSeq++;
     const id = 'row' + rowSeq;
     const name = item?.product_name || '';
-    const sku = item?.sku || '';
     const qty = item?.quantity || 1;
     const price = item?.unit_price || 0;
     const productId = item?.product_id || '';
@@ -460,11 +461,17 @@ function initAddOrderForm() {
     tr.dataset.rowId = id;
     tr.dataset.productId = productId;
     tr.innerHTML = `
+      <td class="py-2 pr-2">
+        <input type="file" class="item-image-input hidden" accept="image/*" id="img_${id}">
+        <label for="img_${id}" class="cursor-pointer w-10 h-10 rounded bg-gray-100 flex items-center justify-center text-gray-400 hover:text-brand hover:bg-brand-50 border border-gray-200 overflow-hidden relative">
+          <i class="ti ti-photo"></i>
+          <img src="" class="absolute inset-0 w-full h-full object-cover hidden preview-img">
+        </label>
+      </td>
       <td class="py-2 pr-2 relative">
         <input type="text" class="product-name-input w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" placeholder="Search product..." value="${name.replace(/"/g, '&quot;')}" autocomplete="off">
-        <div class="product-suggestions hidden absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"></div>
+        <div class="product-suggestions hidden absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"></div>
       </td>
-      <td class="py-2 pr-2 sku-cell text-gray-500 text-xs">${sku || '---'}</td>
       <td class="py-2 pr-2 text-center">
         <input type="number" class="qty-input w-20 rounded-lg border border-gray-300 px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand" value="${qty}" min="1">
       </td>
@@ -481,16 +488,32 @@ function initAddOrderForm() {
 
   function bindRow(tr) {
     const nameInput = tr.querySelector('.product-name-input');
-    const skuCell = tr.querySelector('.sku-cell');
     const qtyInput = tr.querySelector('.qty-input');
     const priceInput = tr.querySelector('.price-input');
     const suggestBox = tr.querySelector('.product-suggestions');
     const removeBtn = tr.querySelector('.remove-row');
+    const imgInput = tr.querySelector('.item-image-input');
+    const imgPreview = tr.querySelector('.preview-img');
+
+    if (imgInput && imgPreview) {
+      imgInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+          const url = URL.createObjectURL(file);
+          imgPreview.src = url;
+          imgPreview.classList.remove('hidden');
+          imgPreview.parentElement.querySelector('i').classList.add('hidden');
+        } else {
+          imgPreview.src = '';
+          imgPreview.classList.add('hidden');
+          imgPreview.parentElement.querySelector('i').classList.remove('hidden');
+        }
+      });
+    }
 
     let debounceTimer;
     nameInput.addEventListener('input', function () {
       tr.dataset.productId = ''; // typing invalidates the previous selection
-      skuCell.textContent = '---';
       clearTimeout(debounceTimer);
       const q = nameInput.value.trim();
       if (q.length < 2) { suggestBox.classList.add('hidden'); return; }
@@ -500,9 +523,9 @@ function initAddOrderForm() {
           const products = await res.json();
           if (!products.length) { suggestBox.classList.add('hidden'); return; }
           suggestBox.innerHTML = products.map(p =>
-            `<button type="button" class="suggestion-item block w-full text-left px-3 py-2 text-sm hover:bg-gray-50" data-id="${p.product_id}" data-sku="${p.sku || ''}" data-price="${p.unit_price}" data-name="${p.name.replace(/"/g, '&quot;')}">
+            `<button type="button" class="suggestion-item block w-full text-left px-3 py-2 text-sm hover:bg-gray-50" data-id="${p.product_id}" data-price="${p.unit_price}" data-name="${p.name.replace(/"/g, '&quot;')}">
               <span class="font-medium text-gray-800">${p.name}</span>
-              <span class="text-gray-400 text-xs block">${p.sku || '---'} · PKR ${Number(p.unit_price).toLocaleString()}</span>
+              <span class="text-gray-400 text-xs block">PKR ${Number(p.unit_price).toLocaleString()}</span>
             </button>`
           ).join('');
           suggestBox.classList.remove('hidden');
@@ -514,7 +537,6 @@ function initAddOrderForm() {
       const item = e.target.closest('.suggestion-item');
       if (!item) return;
       nameInput.value = item.dataset.name;
-      skuCell.textContent = item.dataset.sku || '---';
       priceInput.value = item.dataset.price;
       tr.dataset.productId = item.dataset.id;
       suggestBox.classList.add('hidden');
@@ -596,9 +618,10 @@ function initAddOrderForm() {
           results.innerHTML = customers.map(c =>
             `<button type="button" class="customer-result block w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
                data-id="${c.customer_id}" data-name="${(c.full_name || '').replace(/"/g, '&quot;')}"
-               data-instagram="${c.instagram_handle || ''}" data-whatsapp="${c.whatsapp_number || ''}" data-gender="${c.gender || ''}">
+               data-instagram="${c.instagram_handle || ''}" data-whatsapp="${c.whatsapp_number || ''}" 
+               data-country="${c.country || ''}" data-city="${c.city || ''}" data-gender="${c.gender || ''}">
               <span class="font-medium text-gray-800">${c.full_name || 'Unnamed'}</span>
-              <span class="text-gray-400 text-xs block">${c.whatsapp_number || ''}</span>
+              <span class="text-gray-400 text-xs block">${c.whatsapp_number || c.instagram_handle || ''}</span>
             </button>`
           ).join('');
           results.classList.remove('hidden');
@@ -611,10 +634,29 @@ function initAddOrderForm() {
       if (!item) return;
       document.getElementById('customerIdField').value = item.dataset.id;
       document.getElementById('fullNameField').value = item.dataset.name;
-      document.getElementById('instagramField').value = item.dataset.instagram;
-      document.getElementById('whatsappField').value = item.dataset.whatsapp;
-      if (item.dataset.gender === 'male') document.getElementById('genderMale').checked = true;
-      if (item.dataset.gender === 'female') document.getElementById('genderFemale').checked = true;
+      
+      const instaField = document.getElementById('instagramField');
+      if(instaField) instaField.value = item.dataset.instagram;
+      
+      const waField = document.getElementById('whatsappField');
+      if(waField) waField.value = item.dataset.whatsapp;
+      
+      const countryField = document.getElementById('countrySelect');
+      if(countryField) {
+          countryField.value = item.dataset.country;
+          countryField.dispatchEvent(new Event('change')); // Trigger city list update
+      }
+      
+      const cityField = document.getElementById('citySelect');
+      if(cityField) {
+          setTimeout(() => { cityField.value = item.dataset.city; }, 50);
+      }
+
+      const mGender = document.getElementById('genderMale');
+      const fGender = document.getElementById('genderFemale');
+      if (mGender && item.dataset.gender === 'male') mGender.checked = true;
+      if (fGender && item.dataset.gender === 'female') fGender.checked = true;
+      
       results.classList.add('hidden');
       box.classList.add('hidden');
     });
@@ -635,21 +677,31 @@ function initAddOrderForm() {
     document.querySelectorAll('.field-error').forEach(el => el.classList.add('hidden'));
     document.getElementById('formGeneralError').classList.add('hidden');
 
-    const items = Array.from(rowsBody.querySelectorAll('tr')).map(tr => ({
-      product_id: tr.dataset.productId || null,
-      product_name: tr.querySelector('.product-name-input').value.trim(),
-      sku: tr.querySelector('.sku-cell').textContent.trim() === '---' ? '' : tr.querySelector('.sku-cell').textContent.trim(),
-      quantity: parseInt(tr.querySelector('.qty-input').value) || 1,
-      unit_price: parseFloat(tr.querySelector('.price-input').value) || 0,
-    })).filter(i => i.product_name !== '');
-
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     const originalLabel = submitBtn.textContent;
     submitBtn.textContent = 'Saving...';
 
     const formData = new FormData(form);
-    formData.append('items', JSON.stringify(items));
+    const rows = Array.from(rowsBody.querySelectorAll('tr')).filter(tr => tr.querySelector('.product-name-input').value.trim() !== '');
+    
+    let itemsJson = [];
+    rows.forEach((tr, idx) => {
+      const itemObj = {
+        product_id: tr.dataset.productId || null,
+        product_name: tr.querySelector('.product-name-input').value.trim(),
+        sku: '',
+        quantity: parseInt(tr.querySelector('.qty-input').value) || 1,
+        unit_price: parseFloat(tr.querySelector('.price-input').value) || 0,
+      };
+      itemsJson.push(itemObj);
+
+      const imgInput = tr.querySelector('.item-image-input');
+      if (imgInput && imgInput.files.length > 0) {
+        formData.append(`items_image_${idx}`, imgInput.files[0]);
+      }
+    });
+    formData.append('items', JSON.stringify(itemsJson));
 
     try {
       const res = await fetch(isEdit ? 'editorder.php' : 'addorder.php', { method: 'POST', body: formData });
@@ -1198,6 +1250,23 @@ function initExpenseFilterForm() {
 }
 
 // ---------------------------------------------------------
+// Order list filters
+// ---------------------------------------------------------
+function initOrderFilterForm() {
+  const form = document.getElementById('orderFilterForm');
+  if (!form) return;
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const params = new URLSearchParams(new FormData(form)).toString();
+    navigateTo('listorder.php' + (params ? '?' + params : ''), true);
+  });
+
+  const resetBtn = document.getElementById('resetOrderFiltersBtn');
+  if (resetBtn) resetBtn.addEventListener('click', () => navigateTo('listorder.php', true));
+}
+
+// ---------------------------------------------------------
 // Quick date-range presets (Today / This Week / This Month / This Year / All Time)
 // ---------------------------------------------------------
 function initExpensePresets() {
@@ -1275,6 +1344,26 @@ function initExpenseDeleteButtons() {
 function initExpenseFilterDropdownToggle() {
   const toggle = document.getElementById('expenseFilterToggle');
   const menu = document.getElementById('expenseFilterMenu');
+  if (!toggle || !menu) return;
+  if (toggle.dataset.bound) return;
+  toggle.dataset.bound = '1';
+
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.classList.toggle('hidden');
+  });
+  menu.addEventListener('click', (e) => {
+    e.stopPropagation(); // keep menu open when interacting with form
+  });
+  document.addEventListener('click', () => menu.classList.add('hidden'));
+}
+
+// ---------------------------------------------------------
+// Order Filter dropdown
+// ---------------------------------------------------------
+function initOrderFilterDropdownToggle() {
+  const toggle = document.getElementById('orderFilterToggle');
+  const menu = document.getElementById('orderFilterMenu');
   if (!toggle || !menu) return;
   if (toggle.dataset.bound) return;
   toggle.dataset.bound = '1';
