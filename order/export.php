@@ -16,7 +16,7 @@ $out = fopen('php://output', 'w');
 fputcsv($out, ['Order ID', 'Date', 'Customer', 'Status', 'Total', 'Currency', 'Paid', 'Remaining']);
 foreach ($rows as $r) {
     fputcsv($out, [
-        'ORD-' . str_pad($r['order_id'], 5, '0', STR_PAD_LEFT),
+        'ORD-' . (int)$r['order_id'],
         $r['order_date'], $r['full_name'], $r['status'],
         $r['total_amount'], $r['currency'], $r['amount_paid'], $r['remaining_balance'],
     ]);

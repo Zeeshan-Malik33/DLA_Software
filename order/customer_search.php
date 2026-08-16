@@ -11,7 +11,7 @@ if ($q === '') {
 }
 
 $stmt = $pdo->prepare('
-    SELECT customer_id, full_name, instagram_handle, country, city
+    SELECT customer_id, full_name, instagram_handle, whatsapp_number, country, city, gender
     FROM customers
     WHERE full_name LIKE ? OR instagram_handle LIKE ?
     ORDER BY full_name ASC

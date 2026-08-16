@@ -22,8 +22,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $errors = [];
     if ($fullName === '')  $errors['full_name'] = 'Full name is required.';
-    if ($whatsapp === '')  $errors['whatsapp_number'] = 'WhatsApp number is required.';
-    if ($country === '')   $errors['country'] = 'Country is required.';
+    
+    // Check uniqueness
+    if ($fullName !== '') {
+        $stmt = $pdo->prepare('SELECT COUNT(*) FROM customers WHERE full_name = ?');
+        $stmt->execute([$fullName]);
+        if ($stmt->fetchColumn() > 0) {
+            $errors['full_name'] = 'A customer with this name already exists.';
+        }
+    }
+
+    if ($whatsapp !== '' && !preg_match('/^[0-9]+$/', $whatsapp)) {
+        $errors['whatsapp_number'] = 'WhatsApp number must contain only digits.';
+    }
 
     // Optional profile photo upload
     $photoPath = null;
@@ -71,7 +82,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ob_start();
 ?>
 
-<div class="mb-6">
+<div class="flex flex-col h-full">
+
+<div class="mb-6 shrink-0">
   <h2 class="text-2xl font-bold text-gray-900">Add Customer</h2>
   <p class="text-sm text-gray-400 mt-1">
     <a href="../dashboard/index.php" data-spa data-page="dashboard" class="hover:text-brand">Dashboard</a>
@@ -81,9 +94,10 @@ ob_start();
   </p>
 </div>
 
-<form id="addCustomerForm" class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 sm:p-8" novalidate>
+<div class="flex-1 min-h-0 overflow-y-auto pr-2 pb-2">
+<form id="addCustomerForm" class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-5" novalidate>
 
-  <div class="flex flex-col items-center mb-8">
+  <div class="flex flex-col items-center mb-4">
     <div class="relative">
       <button type="button" id="photoTrigger"
               class="w-24 h-24 rounded-full border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center overflow-hidden">
@@ -100,50 +114,49 @@ ob_start();
     <p id="photoError" class="text-xs text-red-600 mt-1 hidden"></p>
   </div>
 
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
 
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Full Name <span class="text-red-500">*</span></label>
-      <input type="text" name="full_name" placeholder="Enter full name..."
-             class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
+      <label class="block text-xs font-medium text-gray-700 mb-1">Full Name <span class="text-red-500">*</span></label>
+      <input type="text" name="full_name" placeholder="Enter full name..." required
+             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
       <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="full_name"></p>
     </div>
 
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Instagram Username</label>
+      <label class="block text-xs font-medium text-gray-700 mb-1">Instagram Username</label>
       <input type="text" name="instagram_handle" placeholder="Enter instagram handle..."
-             class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
+             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
     </div>
 
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">WhatsApp Number <span class="text-red-500">*</span></label>
-      <input type="text" name="whatsapp_number" placeholder="Enter whatsapp number..."
-             class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
+      <label class="block text-xs font-medium text-gray-700 mb-1">WhatsApp Number</label>
+      <input type="text" name="whatsapp_number" placeholder="Enter whatsapp number..." pattern="[0-9]*"
+             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
       <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="whatsapp_number"></p>
     </div>
 
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Country <span class="text-red-500">*</span></label>
-      <select name="country" id="countrySelect"
-              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
-        <option value="">Country</option>
+      <label class="block text-xs font-medium text-gray-700 mb-1">Country</label>
+      <input type="text" name="country" id="countrySelect" list="countryList" placeholder="Select or type country..."
+             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
+      <datalist id="countryList">
         <?php foreach ($COUNTRIES as $c): ?>
-          <option value="<?= h($c) ?>"><?= h($c) ?></option>
+          <option value="<?= h($c) ?>"></option>
         <?php endforeach; ?>
-      </select>
+      </datalist>
       <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="country"></p>
     </div>
 
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
-      <select name="city" id="citySelect"
-              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
-        <option value="">City</option>
-      </select>
+      <label class="block text-xs font-medium text-gray-700 mb-1">City</label>
+      <input type="text" name="city" id="citySelect" list="cityList" placeholder="Select or type city..."
+             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
+      <datalist id="cityList"></datalist>
     </div>
 
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+      <label class="block text-xs font-medium text-gray-700 mb-1">Gender</label>
       <div class="flex items-center gap-6 pt-1">
         <label class="flex items-center gap-2 text-sm text-gray-700">
           <input type="radio" name="gender" value="male" class="accent-brand"> Male
@@ -156,9 +169,9 @@ ob_start();
 
   </div>
 
-  <div id="formGeneralError" class="mt-6 hidden rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2"></div>
+  <div id="formGeneralError" class="mt-4 hidden rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2"></div>
 
-  <div class="flex justify-end gap-3 mt-8">
+  <div class="flex justify-end gap-3 mt-5">
     <a href="listcustomer.php" data-spa
        class="rounded-full border border-gray-300 bg-white text-sm font-medium px-5 py-2.5 text-gray-700 hover:bg-gray-50">
       Cancel
@@ -170,6 +183,8 @@ ob_start();
   </div>
 
 </form>
+</div>
+</div>
 
 <?php
 $content = ob_get_clean();

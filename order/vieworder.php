@@ -43,7 +43,7 @@ else:
 
 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
   <div>
-    <h2 class="text-2xl font-bold text-gray-900">Order #ORD-<?= str_pad($order['order_id'], 5, '0', STR_PAD_LEFT) ?></h2>
+    <h2 class="text-2xl font-bold text-gray-900">Order #ORD-<?= (int)$order['order_id'] ?></h2>
     <p class="text-sm text-gray-400 mt-1">
       <a href="../dashboard/index.php" data-spa data-page="dashboard" class="hover:text-brand">Dashboard</a>
       <span class="mx-1">&gt;</span>
@@ -60,18 +60,18 @@ else:
   </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div class="flex flex-col-reverse lg:grid lg:grid-cols-3 gap-6">
 
   <div class="lg:col-span-2 space-y-6">
 
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
       <h3 class="font-semibold text-gray-900 mb-4">Items</h3>
       <div class="overflow-x-auto">
-        <table class="w-full text-sm min-w-[480px]">
+        <table class="w-full text-sm">
           <thead>
             <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-100">
               <th class="pb-2 font-medium">Product</th>
-              <th class="pb-2 font-medium">SKU</th>
+              <th class="pb-2 font-medium">Image</th>
               <th class="pb-2 font-medium text-center">Qty</th>
               <th class="pb-2 font-medium text-right">Unit Price</th>
               <th class="pb-2 font-medium text-right">Total</th>
@@ -81,7 +81,13 @@ else:
             <?php foreach ($items as $item): ?>
             <tr>
               <td class="py-3 font-medium text-gray-800"><?= h($item['product_name']) ?></td>
-              <td class="py-3 text-gray-500"><?= h($item['sku'] ?: '---') ?></td>
+              <td class="py-3 text-gray-500">
+                <?php if ($item['item_image']): ?>
+                  <button type="button" onclick="openPreviewModal('../<?= h($item['item_image']) ?>')" class="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-medium"><i class="ti ti-photo"></i> Preview</button>
+                <?php else: ?>
+                  <span class="text-gray-400">---</span>
+                <?php endif; ?>
+              </td>
               <td class="py-3 text-center text-gray-700"><?= (int) $item['quantity'] ?></td>
               <td class="py-3 text-right text-gray-700"><?= formatMoney($item['unit_price'], $order['currency']) ?></td>
               <td class="py-3 text-right font-medium text-gray-800"><?= formatMoney($item['line_total'], $order['currency']) ?></td>
@@ -141,6 +147,48 @@ else:
 
   </div>
 </div>
+
+<!-- Image Preview Modal -->
+<div id="imagePreviewModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm transition-opacity">
+  <div class="relative max-w-4xl w-full bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-full">
+    <div class="flex items-center justify-between px-4 py-3 bg-brand text-white">
+      <h3 class="font-semibold text-white">Image Preview</h3>
+      <div class="flex gap-2">
+        <a href="#" id="previewDownloadBtn" download class="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-lg transition-colors" title="Download Image">
+          <i class="ti ti-download text-lg"></i>
+        </a>
+        <button type="button" onclick="closePreviewModal()" class="p-2 text-white/80 hover:text-white hover:bg-red-500 rounded-lg transition-colors" title="Close">
+          <i class="ti ti-x text-lg"></i>
+        </button>
+      </div>
+    </div>
+    <div class="p-4 overflow-auto flex justify-center items-center bg-gray-100/50 flex-1 min-h-[300px]">
+      <img id="previewModalImg" src="" alt="Preview" class="max-w-full max-h-[70vh] rounded shadow-sm object-contain">
+    </div>
+  </div>
+</div>
+
+<script>
+function openPreviewModal(src) {
+    const modal = document.getElementById('imagePreviewModal');
+    document.getElementById('previewModalImg').src = src;
+    
+    const dlBtn = document.getElementById('previewDownloadBtn');
+    dlBtn.href = src;
+    dlBtn.download = src.split('/').pop();
+    
+    modal.classList.remove('hidden');
+}
+
+function closePreviewModal() {
+    document.getElementById('imagePreviewModal').classList.add('hidden');
+    document.getElementById('previewModalImg').src = '';
+}
+
+document.getElementById('imagePreviewModal').addEventListener('click', function(e) {
+    if (e.target === this) closePreviewModal();
+});
+</script>
 
 <?php endif; ?>
 

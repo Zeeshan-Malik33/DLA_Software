@@ -103,8 +103,6 @@ ob_start();
           <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
           <select name="payment_method" class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
             <option value="cash">Cash</option>
-            <option value="visa">Visa</option>
-            <option value="mastercard">Mastercard</option>
             <option value="bank_transfer">Bank Transfer</option>
             <option value="other">Other</option>
           </select>
