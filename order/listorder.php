@@ -63,62 +63,6 @@ ob_start();
   </div>
 </div>
 
-<!-- Table -->
-<div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto mb-6">
-  <table class="w-full text-sm min-w-[820px]">
-    <thead>
-      <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-100">
-        <th class="px-5 py-3 font-medium">#</th>
-        <th class="px-5 py-3 font-medium">Order ID</th>
-        <th class="px-5 py-3 font-medium">Date</th>
-        <th class="px-5 py-3 font-medium">Customer Name</th>
-        <th class="px-5 py-3 font-medium text-right">Items (Qty)</th>
-        <th class="px-5 py-3 font-medium text-right">Total Amount</th>
-        <th class="px-5 py-3 font-medium">Status</th>
-        <th class="px-5 py-3 font-medium text-right">Actions</th>
-      </tr>
-    </thead>
-    <tbody class="divide-y divide-gray-100">
-      <?php foreach ($orders as $i => $order): $c = statusColor($order['status']); ?>
-      <tr>
-        <td class="px-5 py-4 text-gray-400"><?= $i + 1 ?></td>
-        <td class="px-5 py-4">
-          <a href="vieworder.php?id=<?= $order['order_id'] ?>" data-spa class="font-semibold text-brand hover:underline">
-            #ORD-<?= str_pad($order['order_id'], 5, '0', STR_PAD_LEFT) ?>
-          </a>
-        </td>
-        <td class="px-5 py-4 text-gray-500 whitespace-nowrap"><?= date('M j, Y', strtotime($order['order_date'])) ?></td>
-        <td class="px-5 py-4">
-          <div class="flex items-center gap-2">
-            <span class="w-7 h-7 rounded-full <?= avatarColor($order['full_name']) ?> text-white text-[11px] font-semibold flex items-center justify-center">
-              <?= h(initials($order['full_name'])) ?>
-            </span>
-            <span class="font-medium text-gray-800"><?= h($order['full_name'] ?: 'Unnamed') ?></span>
-          </div>
-        </td>
-        <td class="px-5 py-4 text-right text-gray-700"><?= (int) $order['item_count'] ?></td>
-        <td class="px-5 py-4 text-right font-medium text-gray-800"><?= formatMoney($order['total_amount'], $order['currency']) ?></td>
-        <td class="px-5 py-4">
-          <span class="inline-flex items-center gap-1.5 <?= $c['soft'] ?> <?= $c['text'] ?> text-xs font-medium px-2.5 py-1 rounded-full">
-            <span class="w-1.5 h-1.5 rounded-full <?= $c['bg'] ?>"></span> <?= h(statusLabel($order['status'])) ?>
-          </span>
-        </td>
-        <td class="px-5 py-4">
-          <div class="flex items-center justify-end gap-3 text-gray-400">
-            <a href="vieworder.php?id=<?= $order['order_id'] ?>" data-spa title="View" class="hover:text-brand"><i class="ti ti-eye"></i></a>
-            <a href="editorder.php?id=<?= $order['order_id'] ?>" data-spa title="Edit" class="hover:text-brand"><i class="ti ti-edit"></i></a>
-            <button type="button" data-delete-order="<?= $order['order_id'] ?>" title="Delete" class="hover:text-red-600"><i class="ti ti-trash"></i></button>
-          </div>
-        </td>
-      </tr>
-      <?php endforeach; ?>
-      <?php if (empty($orders)): ?>
-      <tr><td colspan="8" class="px-5 py-10 text-center text-gray-400">No orders yet. Click "Add Order" to create the first one.</td></tr>
-      <?php endif; ?>
-    </tbody>
-  </table>
-</div>
-
 <!-- Stat cards -->
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
@@ -187,6 +131,64 @@ ob_start();
   </div>
 
 </div>
+
+<!-- Table -->
+<div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto mb-6">
+  <table class="w-full text-sm min-w-[820px]">
+    <thead>
+      <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-100">
+        <th class="px-5 py-3 font-medium">#</th>
+        <th class="px-5 py-3 font-medium">Order ID</th>
+        <th class="px-5 py-3 font-medium">Date</th>
+        <th class="px-5 py-3 font-medium">Customer Name</th>
+        <th class="px-5 py-3 font-medium text-right">Items (Qty)</th>
+        <th class="px-5 py-3 font-medium text-right">Total Amount</th>
+        <th class="px-5 py-3 font-medium">Status</th>
+        <th class="px-5 py-3 font-medium text-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      <?php foreach ($orders as $i => $order): $c = statusColor($order['status']); ?>
+      <tr>
+        <td class="px-5 py-4 text-gray-400"><?= $i + 1 ?></td>
+        <td class="px-5 py-4">
+          <a href="vieworder.php?id=<?= $order['order_id'] ?>" data-spa class="font-semibold text-brand hover:underline">
+            #ORD-<?= str_pad($order['order_id'], 5, '0', STR_PAD_LEFT) ?>
+          </a>
+        </td>
+        <td class="px-5 py-4 text-gray-500 whitespace-nowrap"><?= date('M j, Y', strtotime($order['order_date'])) ?></td>
+        <td class="px-5 py-4">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-full <?= avatarColor($order['full_name']) ?> text-white text-[11px] font-semibold flex items-center justify-center">
+              <?= h(initials($order['full_name'])) ?>
+            </span>
+            <span class="font-medium text-gray-800"><?= h($order['full_name'] ?: 'Unnamed') ?></span>
+          </div>
+        </td>
+        <td class="px-5 py-4 text-right text-gray-700"><?= (int) $order['item_count'] ?></td>
+        <td class="px-5 py-4 text-right font-medium text-gray-800"><?= formatMoney($order['total_amount'], $order['currency']) ?></td>
+        <td class="px-5 py-4">
+          <span class="inline-flex items-center gap-1.5 <?= $c['soft'] ?> <?= $c['text'] ?> text-xs font-medium px-2.5 py-1 rounded-full">
+            <span class="w-1.5 h-1.5 rounded-full <?= $c['bg'] ?>"></span> <?= h(statusLabel($order['status'])) ?>
+          </span>
+        </td>
+        <td class="px-5 py-4">
+          <div class="flex items-center justify-end gap-3 text-gray-400">
+            <a href="vieworder.php?id=<?= $order['order_id'] ?>" data-spa title="View" class="hover:text-brand"><i class="ti ti-eye"></i></a>
+            <a href="editorder.php?id=<?= $order['order_id'] ?>" data-spa title="Edit" class="hover:text-brand"><i class="ti ti-edit"></i></a>
+            <button type="button" data-delete-order="<?= $order['order_id'] ?>" title="Delete" class="hover:text-red-600"><i class="ti ti-trash"></i></button>
+          </div>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+      <?php if (empty($orders)): ?>
+      <tr><td colspan="8" class="px-5 py-10 text-center text-gray-400">No orders yet. Click "Add Order" to create the first one.</td></tr>
+      <?php endif; ?>
+    </tbody>
+  </table>
+</div>
+
+
 
 <?php
 $content = ob_get_clean();

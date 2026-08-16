@@ -1,0 +1,54 @@
+POST Data:
+Array
+(
+    [customer_id] => 
+    [full_name] => Zia Ullah Jan
+    [instagram_handle] => 
+    [country] => Pakistan
+    [city] => 
+    [order_date] => 2026-08-14
+    [expected_delivery_date] => 
+    [shipping_weight_kg] => 5
+    [cost_of_goods] => 3000
+    [shipping_cost] => 1000
+    [amount_paid] => 
+    [payment_status] => paid
+    [items] => [{"product_id":null,"product_name":"Coat","sku":"","quantity":1,"unit_price":5000}]
+)
+
+POST Data:
+Array
+(
+    [customer_id] => 
+    [full_name] => Zia Ullah Jan
+    [instagram_handle] => fasfsfafa
+    [country] => Pakistan
+    [city] => 
+    [order_date] => 2026-08-14
+    [expected_delivery_date] => 
+    [shipping_weight_kg] => 5
+    [cost_of_goods] => 3000
+    [shipping_cost] => 1000
+    [amount_paid] => 
+    [payment_status] => paid
+    [items] => [{"product_id":null,"product_name":"Coat","sku":"","quantity":1,"unit_price":5000}]
+)
+
+POST Data:
+Array
+(
+    [customer_id] => 
+    [full_name] => Hassan
+    [instagram_handle] => 242342
+    [country] => Norway
+    [city] => 
+    [order_date] => 2026-08-16
+    [expected_delivery_date] => 2026-08-26
+    [shipping_weight_kg] => 
+    [cost_of_goods] => 
+    [shipping_cost] => 0
+    [payment_status] => pending
+    [amount_paid] => 
+    [items] => [{"product_id":null,"product_name":"waste coad","sku":"","quantity":1,"unit_price":0}]
+)
+

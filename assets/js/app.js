@@ -116,6 +116,7 @@ function initPageScripts() {
   initExpenseDeleteButtons();
   initExpensePresets();
   initExpenseFilterDropdownToggle();
+  initPaymentFilterDropdownToggle();
 }
 
 function initDashboardRangeForm() {
@@ -454,11 +455,12 @@ function initAddOrderForm() {
       subtotal += lineTotal;
     });
     const shipping = parseFloat(document.getElementById('shippingInput').value) || 0;
-    const tax = subtotal * 0.10;
+    const taxEl = document.getElementById('sumTax');
+    const tax = taxEl ? subtotal * 0.10 : 0;
     const grandTotal = subtotal + tax + shipping;
 
     document.getElementById('sumSubtotal').textContent = 'PKR ' + subtotal.toLocaleString();
-    document.getElementById('sumTax').textContent = 'PKR ' + tax.toLocaleString();
+    if (taxEl) taxEl.textContent = 'PKR ' + tax.toLocaleString();
     document.getElementById('sumGrandTotal').textContent = 'PKR ' + grandTotal.toLocaleString();
   }
 
@@ -636,6 +638,7 @@ function initAddPaymentForm() {
   let debounceTimer;
   searchInput.addEventListener('input', function () {
     orderIdField.value = '';
+    customerField.value = '';
     clearTimeout(debounceTimer);
     const q = searchInput.value.trim();
     if (q.length < 1) { results.classList.add('hidden'); return; }
@@ -662,7 +665,7 @@ function initAddPaymentForm() {
     if (!item) return;
     orderIdField.value = item.dataset.id;
     customerField.value = item.dataset.name;
-    searchInput.value = '#' + item.closest('.order-result').querySelector('.font-medium').textContent.trim();
+    searchInput.value = item.querySelector('.font-medium').textContent.trim();
     outstandingBalance = parseFloat(item.dataset.balance) || 0;
     currency = item.dataset.currency || 'PKR';
     sumOutstanding.textContent = currency + ' ' + outstandingBalance.toLocaleString();
@@ -1203,6 +1206,26 @@ function initExpenseDeleteButtons() {
 function initExpenseFilterDropdownToggle() {
   const toggle = document.getElementById('expenseFilterToggle');
   const menu = document.getElementById('expenseFilterMenu');
+  if (!toggle || !menu) return;
+  if (toggle.dataset.bound) return;
+  toggle.dataset.bound = '1';
+
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.classList.toggle('hidden');
+  });
+  menu.addEventListener('click', (e) => {
+    e.stopPropagation(); // keep menu open when interacting with form
+  });
+  document.addEventListener('click', () => menu.classList.add('hidden'));
+}
+
+// ---------------------------------------------------------
+// Payment Filter dropdown
+// ---------------------------------------------------------
+function initPaymentFilterDropdownToggle() {
+  const toggle = document.getElementById('paymentFilterToggle');
+  const menu = document.getElementById('paymentFilterMenu');
   if (!toggle || !menu) return;
   if (toggle.dataset.bound) return;
   toggle.dataset.bound = '1';

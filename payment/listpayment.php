@@ -97,6 +97,8 @@ $statusStyles = [
     'refunded'  => 'bg-gray-100 text-gray-600',
 ];
 
+$isFilterApplied = ($txn !== '' || $name !== '' || $method !== '');
+
 ob_start();
 ?>
 
@@ -105,51 +107,103 @@ ob_start();
     <h2 class="text-2xl font-bold text-gray-900">Payment Management</h2>
   </div>
   <div class="flex flex-wrap gap-2">
+    <?php if ($isFilterApplied): ?>
+      <a href="listpayment.php" data-spa
+         class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
+        <i class="ti ti-refresh"></i> Reset
+      </a>
+      <a href="export.php?<?= h(http_build_query($_GET)) ?>" target="_blank"
+         class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
+        <i class="ti ti-download"></i> Download Report
+      </a>
+    <?php endif; ?>
+
     <a href="addpayment.php" data-spa
        class="inline-flex items-center gap-2 rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-4 py-2">
       <i class="ti ti-plus"></i> Add Payment
     </a>
-    <a href="export.php?<?= h(http_build_query($_GET)) ?>"
-       class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
-      <i class="ti ti-download"></i> Export
-    </a>
+    <div class="relative">
+      <button type="button" id="paymentFilterToggle"
+        class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
+        <i class="ti ti-filter"></i> Filter <i class="ti ti-chevron-down text-xs"></i>
+      </button>
+      <div id="paymentFilterMenu" class="hidden absolute left-0 sm:left-auto sm:right-0 mt-1 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-4">
+        <form id="paymentFilterForm">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Transaction ID</label>
+              <input type="text" name="txn" value="<?= h($txn) ?>" placeholder="Enter transaction ID..."
+                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Customer Name</label>
+              <input type="text" name="name" value="<?= h($name) ?>" placeholder="Enter customer name..."
+                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Method</label>
+              <select name="method" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+                <option value="">Select method</option>
+                <?php foreach ($methodLabels as $key => $label): ?>
+                  <option value="<?= h($key) ?>" <?= $method === $key ? 'selected' : '' ?>><?= h($label) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+              <button type="button" id="resetFiltersBtn"
+                      class="rounded-md border border-gray-300 bg-white text-xs font-medium px-3 py-1.5 text-gray-700 hover:bg-gray-50">Reset</button>
+              <button type="submit"
+                      class="inline-flex items-center gap-1 rounded-md bg-brand hover:bg-brand-light text-white text-xs font-medium px-3 py-1.5">
+                Apply
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- Filters -->
-<form id="paymentFilterForm" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+<!-- Stat cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
+    <span class="w-11 h-11 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i class="ti ti-file-invoice text-lg"></i></span>
     <div>
-      <label class="block text-xs font-semibold text-gray-600 mb-1">Transaction ID</label>
-      <input type="text" name="txn" value="<?= h($txn) ?>" placeholder="Enter transaction ID..."
-             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-    </div>
-    <div>
-      <label class="block text-xs font-semibold text-gray-600 mb-1">Customer Name</label>
-      <input type="text" name="name" value="<?= h($name) ?>" placeholder="Enter customer name..."
-             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-    </div>
-    <div>
-      <label class="block text-xs font-semibold text-gray-600 mb-1">Method</label>
-      <select name="method" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-        <option value="">Select method</option>
-        <?php foreach ($methodLabels as $key => $label): ?>
-          <option value="<?= $key ?>" <?= $method === $key ? 'selected' : '' ?>><?= $label ?></option>
-        <?php endforeach; ?>
-      </select>
-    </div>
-    <div class="flex gap-2 lg:justify-end">
-      <button type="button" id="resetFiltersBtn"
-              class="rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
-        Reset Filters
-      </button>
-      <button type="submit"
-              class="inline-flex items-center gap-2 rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-4 py-2">
-        <i class="ti ti-filter"></i> Apply Filters
-      </button>
+      <p class="text-sm text-gray-500">Total Revenue</p>
+      <p class="text-2xl font-bold text-gray-900"><?= formatMoney($totalRevenue) ?></p>
+      <p class="text-xs <?= $revenueTrend >= 0 ? 'text-emerald-600' : 'text-red-600' ?> mt-1">
+        <i class="ti ti-trending-<?= $revenueTrend >= 0 ? 'up' : 'down' ?>"></i> <?= abs($revenueTrend) ?>% from last month
+      </p>
     </div>
   </div>
-</form>
+
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
+    <span class="w-11 h-11 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0"><i class="ti ti-clock-hour-4 text-lg"></i></span>
+    <div>
+      <p class="text-sm text-gray-500">Pending Payments</p>
+      <p class="text-2xl font-bold text-gray-900"><?= number_format($pendingCount) ?></p>
+      <p class="text-xs text-gray-400 mt-1">Waiting for approval</p>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
+    <span class="w-11 h-11 rounded-lg bg-red-50 text-red-500 flex items-center justify-center shrink-0"><i class="ti ti-arrow-back-up text-lg"></i></span>
+    <div>
+      <p class="text-sm text-gray-500">Refunds Issued</p>
+      <p class="text-2xl font-bold text-gray-900"><?= formatMoney($refundsIssued) ?></p>
+      <p class="text-xs text-red-500 mt-1"><i class="ti ti-trending-up"></i> <?= abs($refundsTrend) ?>% this week</p>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
+    <span class="w-11 h-11 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><i class="ti ti-circle-check text-lg"></i></span>
+    <div>
+      <p class="text-sm text-gray-500">Success Rate (%)</p>
+      <p class="text-2xl font-bold text-gray-900"><?= $successRate ?>%</p>
+      <p class="text-xs text-emerald-600 mt-1">Excellent performance</p>
+    </div>
+  </div>
+</div>
 
 <!-- Table -->
 <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto mb-6">
@@ -198,87 +252,7 @@ ob_start();
   </table>
 </div>
 
-<!-- Stat cards -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
 
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
-    <span class="w-11 h-11 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i class="ti ti-file-invoice text-lg"></i></span>
-    <div>
-      <p class="text-sm text-gray-500">Total Revenue</p>
-      <p class="text-2xl font-bold text-gray-900"><?= formatMoney($totalRevenue) ?></p>
-      <p class="text-xs <?= $revenueTrend >= 0 ? 'text-emerald-600' : 'text-red-600' ?> mt-1">
-        <i class="ti ti-trending-<?= $revenueTrend >= 0 ? 'up' : 'down' ?>"></i> <?= abs($revenueTrend) ?>% from last month
-      </p>
-    </div>
-  </div>
-
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
-    <span class="w-11 h-11 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0"><i class="ti ti-clock-hour-4 text-lg"></i></span>
-    <div>
-      <p class="text-sm text-gray-500">Pending Payments</p>
-      <p class="text-2xl font-bold text-gray-900"><?= number_format($pendingCount) ?></p>
-      <p class="text-xs text-gray-400 mt-1">Waiting for approval</p>
-    </div>
-  </div>
-
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
-    <span class="w-11 h-11 rounded-lg bg-red-50 text-red-500 flex items-center justify-center shrink-0"><i class="ti ti-arrow-back-up text-lg"></i></span>
-    <div>
-      <p class="text-sm text-gray-500">Refunds Issued</p>
-      <p class="text-2xl font-bold text-gray-900"><?= formatMoney($refundsIssued) ?></p>
-      <p class="text-xs text-red-500 mt-1"><i class="ti ti-trending-up"></i> <?= abs($refundsTrend) ?>% this week</p>
-    </div>
-  </div>
-
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
-    <span class="w-11 h-11 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><i class="ti ti-circle-check text-lg"></i></span>
-    <div>
-      <p class="text-sm text-gray-500">Success Rate (%)</p>
-      <p class="text-2xl font-bold text-gray-900"><?= $successRate ?>%</p>
-      <p class="text-xs text-emerald-600 mt-1">Excellent performance</p>
-    </div>
-  </div>
-
-</div>
-
-<!-- Feature overview -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-  <div class="flex items-start gap-3">
-    <span class="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i class="ti ti-file-invoice"></i></span>
-    <div>
-      <p class="font-semibold text-gray-900 text-sm">Record Payments</p>
-      <p class="text-xs text-gray-500 mt-1">Manually add offline payments or wire transfers to balance ledger.</p>
-    </div>
-  </div>
-  <div class="flex items-start gap-3">
-    <span class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0"><i class="ti ti-search"></i></span>
-    <div>
-      <p class="font-semibold text-gray-900 text-sm">Audit Trail</p>
-      <p class="text-xs text-gray-500 mt-1">Filter transactions by date, status, or method for fast reconciliation.</p>
-    </div>
-  </div>
-  <div class="flex items-start gap-3">
-    <span class="w-9 h-9 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center shrink-0"><i class="ti ti-file-text"></i></span>
-    <div>
-      <p class="font-semibold text-gray-900 text-sm">Digital Receipts</p>
-      <p class="text-xs text-gray-500 mt-1">Generate printable receipts you can save or forward to customers.</p>
-    </div>
-  </div>
-  <div class="flex items-start gap-3">
-    <span class="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i class="ti ti-receipt-refund"></i></span>
-    <div>
-      <p class="font-semibold text-gray-900 text-sm">Refund Handling</p>
-      <p class="text-xs text-gray-500 mt-1">Mark payments as refunded; balances adjust automatically.</p>
-    </div>
-  </div>
-  <div class="flex items-start gap-3">
-    <span class="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i class="ti ti-download"></i></span>
-    <div>
-      <p class="font-semibold text-gray-900 text-sm">Reporting</p>
-      <p class="text-xs text-gray-500 mt-1">Export payment data as CSV for your accounting software.</p>
-    </div>
-  </div>
-</div>
 
 <!-- View payment modal -->
 <div id="paymentModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">

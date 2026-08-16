@@ -12,6 +12,7 @@ $pageTitle  = 'Add Order';
 // ---------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
+    file_put_contents('debug_order.txt', "POST Data:\n" . print_r($_POST, true) . "\n", FILE_APPEND);
 
     $customerId   = (int) ($_POST['customer_id'] ?? 0);
     $fullName     = trim($_POST['full_name'] ?? '');
@@ -21,6 +22,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $orderDate    = trim($_POST['order_date'] ?? '');
     $expectedDate = trim($_POST['expected_delivery_date'] ?? '') ?: null;
     $shippingCost = (float) ($_POST['shipping_cost'] ?? 0);
+    $shippingWeight = isset($_POST['shipping_weight_kg']) && $_POST['shipping_weight_kg'] !== '' ? (float) $_POST['shipping_weight_kg'] : null;
+    $manualCostOfGoods = isset($_POST['cost_of_goods']) && $_POST['cost_of_goods'] !== '' ? (float) $_POST['cost_of_goods'] : null;
     $paymentStatus = trim($_POST['payment_status'] ?? 'pending');
     $amountPaidInput = (float) ($_POST['amount_paid'] ?? 0);
     $items = json_decode($_POST['items'] ?? '[]', true) ?: [];
@@ -95,6 +98,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $cleanItems[] = compact('productId', 'name', 'sku', 'qty', 'unitPrice');
         }
 
+        if ($manualCostOfGoods !== null) {
+            $costOfGoods = $manualCostOfGoods;
+        }
+
         if (empty($cleanItems)) {
             $pdo->rollBack();
             echo json_encode(['success' => false, 'errors' => ['items' => 'Add at least one valid product to the order.']]);
@@ -116,12 +123,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             INSERT INTO orders
                 (customer_id, created_by, order_date, expected_delivery_date, status,
                  product_description, total_amount, currency, amount_paid,
-                 cost_of_goods, shipping_cost)
-            VALUES (?, ?, ?, ?, "pending", ?, ?, "PKR", ?, ?, ?)
+                 cost_of_goods, shipping_cost, shipping_weight_kg)
+            VALUES (?, ?, ?, ?, "pending", ?, ?, "PKR", ?, ?, ?, ?)
         ');
         $stmt->execute([
             $customerId, $_SESSION['user_id'], $orderDate, $expectedDate,
-            $productDescription, $grandTotal, $amountPaid, $costOfGoods, $shippingCost,
+            $productDescription, $grandTotal, $amountPaid, $costOfGoods, $shippingCost, $shippingWeight
         ]);
         $orderId = $pdo->lastInsertId();
 
@@ -148,7 +155,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['success' => true, 'order_id' => $orderId]);
     } catch (Exception $e) {
         $pdo->rollBack();
-        echo json_encode(['success' => false, 'message' => 'Could not save the order. Please try again.']);
+        file_put_contents('debug_order.txt', "PDO Error:\n" . $e->getMessage() . "\n", FILE_APPEND);
+        echo json_encode(['success' => false, 'message' => 'Could not save the order. Error: ' . $e->getMessage()]);
     }
     exit;
 }
@@ -279,6 +287,16 @@ ob_start();
       <div class="space-y-3 text-sm">
         <div class="flex justify-between text-gray-600">
           <span>Subtotal</span> <span id="sumSubtotal">PKR 0</span>
+        </div>
+        <div class="flex justify-between items-center text-gray-600">
+          <span>Shipping Weight (kg)</span>
+          <input type="number" name="shipping_weight_kg" placeholder="0.00" min="0" step="0.01"
+                 class="w-28 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand">
+        </div>
+        <div class="flex justify-between items-center text-gray-600">
+          <span>Cost of Goods</span>
+          <input type="number" name="cost_of_goods" placeholder="Auto" min="0" step="0.01"
+                 class="w-28 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand">
         </div>
         <div class="flex justify-between items-center text-gray-600">
           <span>Shipping</span>
