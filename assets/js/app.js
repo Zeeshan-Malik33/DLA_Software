@@ -562,6 +562,79 @@ function initAddOrderForm() {
   const isEdit = form.dataset.mode === 'edit';
   let rowSeq = 0;
 
+  // ---- Portal dropdown (escapes overflow-x-auto clipping) ----
+  // One shared dropdown rendered in <body> with position:fixed,
+  // repositioned below whichever product-name input is active.
+  let productPortal = document.getElementById('dla-product-portal');
+  if (!productPortal) {
+    productPortal = document.createElement('div');
+    productPortal.id = 'dla-product-portal';
+    productPortal.style.cssText = [
+      'position:fixed',
+      'z-index:9999',
+      'background:#fff',
+      'border:1px solid #e5e7eb',
+      'border-radius:8px',
+      'box-shadow:0 8px 24px rgba(0,0,0,0.12)',
+      'max-height:220px',
+      'overflow-y:auto',
+      'min-width:220px',
+      'display:none',
+    ].join(';');
+    document.body.appendChild(productPortal);
+  }
+  let portalActiveRow = null;
+
+  function positionPortal(input) {
+    const r = input.getBoundingClientRect();
+    productPortal.style.left  = r.left + 'px';
+    productPortal.style.width = Math.max(r.width, 260) + 'px';
+    // show below or above depending on available space
+    const spaceBelow = window.innerHeight - r.bottom;
+    if (spaceBelow >= 180 || spaceBelow >= window.innerHeight / 2) {
+      productPortal.style.top    = (r.bottom + 4) + 'px';
+      productPortal.style.bottom = 'auto';
+    } else {
+      productPortal.style.bottom = (window.innerHeight - r.top + 4) + 'px';
+      productPortal.style.top    = 'auto';
+    }
+  }
+
+  function hidePortal() {
+    productPortal.style.display = 'none';
+    portalActiveRow = null;
+  }
+
+  // Portal item click — fill the active row
+  productPortal.addEventListener('mousedown', function (e) {
+    // mousedown fires before the input loses focus, so we can fill safely
+    const item = e.target.closest('.suggestion-item');
+    if (!item || !portalActiveRow) return;
+    e.preventDefault(); // prevent input blur
+    const nameInp  = portalActiveRow.querySelector('.product-name-input');
+    const priceInp = portalActiveRow.querySelector('.price-input');
+    nameInp.value  = item.dataset.name;
+    priceInp.value = item.dataset.price;
+    portalActiveRow.dataset.sku       = item.dataset.sku || '';
+    portalActiveRow.dataset.productId = item.dataset.id;
+    hidePortal();
+    recalcTotals();
+  });
+
+  // Close portal when clicking outside
+  document.addEventListener('click', function (e) {
+    if (!productPortal.contains(e.target) && !e.target.classList.contains('product-name-input')) {
+      hidePortal();
+    }
+  });
+
+  // Reposition portal on scroll
+  window.addEventListener('scroll', function () {
+    if (productPortal.style.display !== 'none' && portalActiveRow) {
+      positionPortal(portalActiveRow.querySelector('.product-name-input'));
+    }
+  }, true);
+
   function rowTemplate(item) {
     rowSeq++;
     const id = 'row' + rowSeq;
@@ -585,7 +658,6 @@ function initAddOrderForm() {
       </td>
       <td class="py-2 pr-2 relative">
         <input type="text" class="product-name-input w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" placeholder="Search product..." value="${name.replace(/"/g, '&quot;')}" autocomplete="off">
-        <div class="product-suggestions hidden absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"></div>
       </td>
       <td class="py-2 pr-2 text-center">
         <input type="text" inputmode="numeric" class="qty-input w-20 rounded-lg border border-gray-300 px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand" value="${qty}" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
@@ -605,7 +677,6 @@ function initAddOrderForm() {
     const nameInput = tr.querySelector('.product-name-input');
     const qtyInput = tr.querySelector('.qty-input');
     const priceInput = tr.querySelector('.price-input');
-    const suggestBox = tr.querySelector('.product-suggestions');
     const removeBtn = tr.querySelector('.remove-row');
     const imageInput = tr.querySelector('.image-input');
     const imagePreview = tr.querySelector('.image-preview');
@@ -639,36 +710,28 @@ function initAddOrderForm() {
       tr.dataset.sku = '';
       clearTimeout(debounceTimer);
       const q = nameInput.value.trim();
-      if (q.length < 2) { suggestBox.classList.add('hidden'); return; }
+      if (q.length < 2) { hidePortal(); return; }
       debounceTimer = setTimeout(async () => {
         try {
           const res = await fetch('product_search.php?q=' + encodeURIComponent(q));
           const products = await res.json();
-          if (!products.length) { suggestBox.classList.add('hidden'); return; }
-          suggestBox.innerHTML = products.map(p =>
-            `<button type="button" class="suggestion-item block w-full text-left px-3 py-2 text-sm hover:bg-gray-50" data-id="${p.product_id}" data-sku="${p.sku || ''}" data-price="${p.unit_price}" data-name="${p.name.replace(/"/g, '&quot;')}">
+          if (!products.length) { hidePortal(); return; }
+          portalActiveRow = tr;
+          productPortal.innerHTML = products.map(p =>
+            `<button type="button" class="suggestion-item block w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0" data-id="${p.product_id}" data-sku="${p.sku || ''}" data-price="${p.unit_price}" data-name="${p.name.replace(/"/g, '&quot;')}">
               <span class="font-medium text-gray-800">${p.name}</span>
               <span class="text-gray-400 text-xs block">${p.sku || '---'} · Rs. ${Number(p.unit_price).toLocaleString()}</span>
             </button>`
           ).join('');
-          suggestBox.classList.remove('hidden');
+          positionPortal(nameInput);
+          productPortal.style.display = 'block';
         } catch (err) { /* silent fail, manual entry still works */ }
       }, 250);
     });
 
-    suggestBox.addEventListener('click', function (e) {
-      const item = e.target.closest('.suggestion-item');
-      if (!item) return;
-      nameInput.value = item.dataset.name;
-      tr.dataset.sku = item.dataset.sku || '';
-      priceInput.value = item.dataset.price;
-      tr.dataset.productId = item.dataset.id;
-      suggestBox.classList.add('hidden');
-      recalcTotals();
-    });
-
-    document.addEventListener('click', function (e) {
-      if (!tr.contains(e.target)) suggestBox.classList.add('hidden');
+    nameInput.addEventListener('blur', function () {
+      // slight delay so mousedown on a suggestion fires first
+      setTimeout(hidePortal, 180);
     });
 
     [qtyInput, priceInput].forEach(input => input.addEventListener('input', recalcTotals));

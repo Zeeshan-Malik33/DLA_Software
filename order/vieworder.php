@@ -85,7 +85,7 @@ else:
               <td class="py-3 font-medium text-gray-800"><?= h($item['product_name']) ?></td>
               <td class="py-3 text-gray-500">
                 <?php if ($item['item_image']): ?>
-                  <button type="button" onclick="openPreviewModal('../<?= h($item['item_image']) ?>')" class="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-medium"><i class="ti ti-photo"></i> Preview</button>
+                  <button type="button" data-preview-src="../<?= h($item['item_image']) ?>" class="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-medium"><i class="ti ti-photo"></i> Preview</button>
                 <?php else: ?>
                   <span class="text-gray-400">---</span>
                 <?php endif; ?>
@@ -159,7 +159,7 @@ else:
         <a href="#" id="previewDownloadBtn" download class="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-lg transition-colors" title="Download Image">
           <i class="ti ti-download text-lg"></i>
         </a>
-        <button type="button" onclick="closePreviewModal()" class="p-2 text-white/80 hover:text-white hover:bg-red-500 rounded-lg transition-colors" title="Close">
+        <button type="button" id="closePreviewModalBtn" class="p-2 text-white/80 hover:text-white hover:bg-red-500 rounded-lg transition-colors" title="Close">
           <i class="ti ti-x text-lg"></i>
         </button>
       </div>
@@ -171,25 +171,43 @@ else:
 </div>
 
 <script>
-function openPreviewModal(src) {
-    const modal = document.getElementById('imagePreviewModal');
-    document.getElementById('previewModalImg').src = src;
-    
-    const dlBtn = document.getElementById('previewDownloadBtn');
-    dlBtn.href = src;
+(function () {
+  var modal   = document.getElementById('imagePreviewModal');
+  var img     = document.getElementById('previewModalImg');
+  var dlBtn   = document.getElementById('previewDownloadBtn');
+  var closeBtn = document.getElementById('closePreviewModalBtn');
+  if (!modal) return;
+
+  function openModal(src) {
+    img.src     = src;
+    dlBtn.href  = src;
     dlBtn.download = src.split('/').pop();
-    
     modal.classList.remove('hidden');
-}
+  }
 
-function closePreviewModal() {
-    document.getElementById('imagePreviewModal').classList.add('hidden');
-    document.getElementById('previewModalImg').src = '';
-}
+  function closeModal() {
+    modal.classList.add('hidden');
+    img.src = '';
+  }
 
-document.getElementById('imagePreviewModal').addEventListener('click', function(e) {
-    if (e.target === this) closePreviewModal();
-});
+  // Close button
+  closeBtn.addEventListener('click', closeModal);
+
+  // Click outside modal box to close
+  modal.addEventListener('click', function (e) {
+    if (e.target === modal) closeModal();
+  });
+
+  // Delegate clicks on all preview buttons (data-preview-src)
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-preview-src]');
+    if (btn) openModal(btn.dataset.previewSrc);
+  });
+
+  // Also expose globally in case anything else calls it
+  window.openPreviewModal  = openModal;
+  window.closePreviewModal = closeModal;
+})();
 </script>
 
 <?php endif; ?>
