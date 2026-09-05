@@ -16,10 +16,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && $_SERVER['REQUEST_
     try {
         $stmt = $pdo->prepare('DELETE FROM customers WHERE customer_id = ?');
         $stmt->execute([$id]);
-        
-        // Reset auto increment so IDs are continuous or start from 1 if empty
-        $pdo->exec('ALTER TABLE customers AUTO_INCREMENT = 1');
-        
+
         echo json_encode(['success' => true]);
     } catch (PDOException $e) {
         // Most likely a foreign key violation because the customer has orders
@@ -73,6 +70,7 @@ $customers = $stmt->fetchAll();
 // ---------------------------------------------------------
 ob_start();
 ?>
+<span data-spa-title="Customer Management — DLA" hidden></span>
 
 <div class="flex flex-col h-full">
 

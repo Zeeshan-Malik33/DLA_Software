@@ -66,13 +66,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    $newId = nextCustomerId($pdo);
     $stmt = $pdo->prepare('
-        INSERT INTO customers (full_name, instagram_handle, whatsapp_number, country, city, gender, photo_path)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO customers (customer_id, full_name, instagram_handle, whatsapp_number, country, city, gender, photo_path)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ');
-    $stmt->execute([$fullName, $instagram, $whatsapp, $country, $city, $gender ?: null, $photoPath]);
+    $stmt->execute([$newId, $fullName, $instagram, $whatsapp, $country, $city, $gender ?: null, $photoPath]);
 
-    echo json_encode(['success' => true, 'customer_id' => $pdo->lastInsertId()]);
+    echo json_encode(['success' => true, 'customer_id' => $newId]);
     exit;
 }
 
@@ -81,6 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // ---------------------------------------------------------
 ob_start();
 ?>
+<span data-spa-title="Add Customer — DLA" hidden></span>
 
 <div class="flex flex-col h-full">
 

@@ -10,17 +10,13 @@ $pageTitle  = 'Dashboard';
 // Date filter
 // ---------------------------------------------------------
 $filterType = $_GET['type'] ?? 'monthly';
-$filterD = $_GET['d'] ?? date('Y-m-d');
 $filterM = $_GET['m'] ?? date('Y-m');
 $filterY = $_GET['y'] ?? date('Y');
 
 $where = '';
 $whereAlias = '';
 
-if ($filterType === 'daily') {
-    $where = "WHERE DATE(order_date) = " . $pdo->quote($filterD);
-    $whereAlias = "WHERE DATE(o.order_date) = " . $pdo->quote($filterD);
-} elseif ($filterType === 'monthly') {
+if ($filterType === 'monthly') {
     $parts = explode('-', $filterM);
     if (count($parts) == 2) {
         $y = (int)$parts[0];
@@ -61,6 +57,7 @@ $recentOrders = $pdo->query("
 
 ob_start();
 ?>
+<span data-spa-title="Dashboard — DLA" hidden></span>
 
 <div class="flex flex-col sm:flex-row sm:items-center gap-6 mb-6">
   <div>
@@ -71,7 +68,6 @@ ob_start();
     <div class="relative">
       <select name="type" onchange="toggleFilterInput(); navigateTo('index.php?' + new URLSearchParams(new FormData(this.form)).toString(), true);"
         class="appearance-none cursor-pointer rounded-lg border border-gray-200 bg-white shadow-sm text-sm font-medium px-4 py-2 pr-8 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors">
-        <option value="daily" <?= $filterType === 'daily' ? 'selected' : '' ?>>Daily</option>
         <option value="monthly" <?= $filterType === 'monthly' ? 'selected' : '' ?>>Monthly</option>
         <option value="yearly" <?= $filterType === 'yearly' ? 'selected' : '' ?>>Yearly</option>
         <option value="all" <?= $filterType === 'all' ? 'selected' : '' ?>>All Time</option>
@@ -79,11 +75,7 @@ ob_start();
       <i class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
     </div>
     
-    <div class="relative <?= $filterType === 'daily' ? '' : 'hidden' ?>" id="filter_daily_wrapper">
-      <input type="date" name="d" id="filter_daily" value="<?= h($filterD) ?>" 
-             class="cursor-pointer rounded-lg border border-gray-200 bg-white shadow-sm text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors"
-             onchange="navigateTo('index.php?' + new URLSearchParams(new FormData(this.form)).toString(), true)">
-    </div>
+
            
     <div class="relative <?= $filterType === 'monthly' ? '' : 'hidden' ?>" id="filter_monthly_wrapper">
       <input type="month" name="m" id="filter_monthly" value="<?= h($filterM) ?>" 
@@ -104,7 +96,6 @@ ob_start();
     <script>
       function toggleFilterInput() {
          const type = document.querySelector('select[name="type"]').value;
-         document.getElementById('filter_daily_wrapper').classList.toggle('hidden', type !== 'daily');
          document.getElementById('filter_monthly_wrapper').classList.toggle('hidden', type !== 'monthly');
          document.getElementById('filter_yearly_wrapper').classList.toggle('hidden', type !== 'yearly');
       }
@@ -129,7 +120,7 @@ function fitText($str) {
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 overflow-hidden">
   <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center gap-4 min-w-0">
     <div class="w-12 h-12 shrink-0 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
-      <i class="ti ti-currency-dollar"></i>
+      <i class="ti ti-currency-rupee"></i>
     </div>
     <div class="min-w-0 flex-1">
       <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-1 truncate">Total Sales</p>
@@ -237,3 +228,4 @@ if (isset($_GET['partial'])) {
 require '../includes/layout_head.php';
 echo $content;
 require '../includes/layout_foot.php';
+

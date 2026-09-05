@@ -1,93 +1,45 @@
 POST Data:
 Array
 (
-    [customer_id] => 
-    [full_name] => Zia Ullah Jan
-    [instagram_handle] => 
+    [customer_id] => 43
+    [full_name] => Zeeshan Malik
+    [instagram_handle] => zeeshan.malik_27
     [country] => Pakistan
-    [city] => 
-    [order_date] => 2026-08-14
+    [order_date] => 2026-09-05
     [expected_delivery_date] => 
-    [shipping_weight_kg] => 5
-    [cost_of_goods] => 3000
-    [shipping_cost] => 1000
-    [amount_paid] => 
-    [payment_status] => paid
-    [items] => [{"product_id":null,"product_name":"Coat","sku":"","quantity":1,"unit_price":5000}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => Zia Ullah Jan
-    [instagram_handle] => fasfsfafa
-    [country] => Pakistan
-    [city] => 
-    [order_date] => 2026-08-14
-    [expected_delivery_date] => 
-    [shipping_weight_kg] => 5
-    [cost_of_goods] => 3000
-    [shipping_cost] => 1000
-    [amount_paid] => 
-    [payment_status] => paid
-    [items] => [{"product_id":null,"product_name":"Coat","sku":"","quantity":1,"unit_price":5000}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => Hassan
-    [instagram_handle] => 242342
-    [country] => Norway
-    [city] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 2026-08-26
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 0
+    [status] => pending
+    [shipping_weight_kg] => 8
+    [cost_of_goods] => 150
+    [shipping_cost] => 100
     [payment_status] => pending
     [amount_paid] => 
-    [items] => [{"product_id":null,"product_name":"waste coad","sku":"","quantity":1,"unit_price":0}]
+    [items] => [{"product_id":null,"product_name":"Coat","sku":"","quantity":1,"unit_price":200},{"product_id":null,"product_name":"Waste","sku":"","quantity":1,"unit_price":100}]
 )
 
-POST Data:
+FILES:
 Array
 (
-    [customer_id] => 10
-    [full_name] => ZEESHAN MALIK CUSIT
-    [instagram_handle] => fadsf
-    [country] => Norway
-    [city] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [shipping_weight_kg] => 5
-    [cost_of_goods] => 1000
-    [shipping_cost] => 1000
-    [amount_paid] => 
-    [payment_status] => paid
-    [items] => [{"product_id":null,"product_name":"Coat","sku":"","quantity":1,"unit_price":1000}]
-)
+    [items_image_0] => Array
+        (
+            [name] => bird-colorful-gradient-design-vector_343694-2506.png
+            [full_path] => bird-colorful-gradient-design-vector_343694-2506.png
+            [type] => image/png
+            [tmp_name] => C:\xampp\tmp\phpCD0F.tmp
+            [error] => 0
+            [size] => 73266
+        )
 
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => ZEESHAN MALIK CUSIT
-    [instagram_handle] => fasfafad
-    [country] => Pakistan
-    [city] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 0
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"product_id":null,"product_name":"Coat","sku":"","quantity":1,"unit_price":100}]
-)
+    [items_image_1] => Array
+        (
+            [name] => 
+            [full_path] => 
+            [type] => 
+            [tmp_name] => 
+            [error] => 4
+            [size] => 0
+        )
 
+)
 POST Data:
 Array
 (
@@ -95,396 +47,82 @@ Array
     [full_name] => 
     [instagram_handle] => 
     [country] => 
-    [order_date] => 2026-08-16
+    [order_date] => 2026-09-05
     [expected_delivery_date] => 
     [status] => pending
     [shipping_weight_kg] => 
     [cost_of_goods] => 
-    [shipping_cost] => 0
-    [payment_status] => partial
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"coat","sku":"","qty":1,"unitPrice":0}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => Musa
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => delivered
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 50
+    [shipping_cost] => 
     [payment_status] => pending
     [amount_paid] => 
-    [items] => [{"productId":null,"name":"coar","sku":"","qty":1,"unitPrice":110}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => Musa
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => delivered
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 50
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"waste coat","sku":"","qty":1,"unitPrice":110}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => Musa
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => delivered
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 50
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"waste coat","sku":"","qty":1,"unitPrice":110}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => Musa
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => delivered
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 50
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"waste coat","sku":"","qty":1,"unitPrice":110}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => Musa
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => delivered
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 50
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"waste coat","sku":"","qty":1,"unitPrice":110}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => Musa
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => delivered
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 50
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"coat","sku":"","qty":1,"unitPrice":110}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => Musa
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => delivered
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 50
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"coat","sku":"","qty":1,"unitPrice":110}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => Musa
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => delivered
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 50
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"coat","sku":"","qty":1,"unitPrice":110}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => HH
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => delivered
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 50
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"waste coat","sku":"","qty":1,"unitPrice":110}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => HH
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => delivered
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 50
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"waste coat","sku":"","qty":1,"unitPrice":110}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => HH
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => delivered
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 50
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"waste coat","sku":"","qty":1,"unitPrice":110}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => HH
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => delivered
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 50
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"waste coat","sku":"","qty":1,"unitPrice":110}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => Musa
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => pending
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 0
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"waste coat","sku":"","qty":1,"unitPrice":1000}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => Musa
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => pending
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 0
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"Coat","sku":"","qty":1,"unitPrice":1000}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => Musa
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => pending
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 0
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"Coat","sku":"","qty":1,"unitPrice":1000}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => Musa
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => pending
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 0
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"Coat","sku":"","qty":1,"unitPrice":1000}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => Musa
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => pending
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 0
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"Coat","sku":"","qty":1,"unitPrice":1000}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => HK
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => pending
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 0
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"Coat","sku":"","qty":1,"unitPrice":1000}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => HK
-    [instagram_handle] => 
-    [country] => 
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => pending
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 
-    [shipping_cost] => 0
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"productId":null,"name":"Coat","sku":"","qty":1,"unitPrice":1000}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 
-    [full_name] => Musa
-    [instagram_handle] => 
-    [country] => Austria
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 2026-08-19
-    [status] => pending
-    [shipping_weight_kg] => 5
-    [cost_of_goods] => 50
-    [shipping_cost] => 60
-    [payment_status] => partial
-    [amount_paid] => 30
-    [items] => [{"product_id":null,"product_name":"Waste","sku":"","quantity":1,"unit_price":100}]
-)
-
-POST Data:
-Array
-(
-    [customer_id] => 10
-    [full_name] => ZEESHAN MALIK CUSIT
-    [instagram_handle] => 
-    [country] => Pakistan
-    [order_date] => 2026-08-16
-    [expected_delivery_date] => 
-    [status] => pending
-    [shipping_weight_kg] => 
-    [cost_of_goods] => 1000
-    [shipping_cost] => 0
-    [payment_status] => pending
-    [amount_paid] => 
-    [items] => [{"product_id":null,"product_name":"dress","sku":"","quantity":1,"unit_price":2000}]
+    [items] => []
 )
 
 FILES:
 Array
 (
+)
+POST Data:
+Array
+(
+    [customer_id] => 1
+    [full_name] => Zeeshan Malik
+    [instagram_handle] => 
+    [country] => 
+    [order_date] => 2026-09-05
+    [expected_delivery_date] => 
+    [status] => pending
+    [shipping_weight_kg] => 4
+    [cost_of_goods] => 
+    [shipping_cost] => 100
+    [payment_status] => pending
+    [amount_paid] => 
+    [items] => [{"product_id":"17","product_name":"Coat","sku":"","quantity":1,"unit_price":200}]
+)
+
+FILES:
+Array
+(
+    [items_image_0] => Array
+        (
+            [name] => 
+            [full_path] => 
+            [type] => 
+            [tmp_name] => 
+            [error] => 4
+            [size] => 0
+        )
+
+)
+POST Data:
+Array
+(
+    [customer_id] => 1
+    [full_name] => Zeeshan Malik
+    [instagram_handle] => 
+    [country] => 
+    [order_date] => 2026-09-05
+    [expected_delivery_date] => 
+    [status] => pending
+    [shipping_weight_kg] => 
+    [cost_of_goods] => 
+    [shipping_cost] => 
+    [payment_status] => pending
+    [amount_paid] => 
+    [items] => [{"product_id":null,"product_name":"Coat","sku":"","quantity":1,"unit_price":100}]
+)
+
+FILES:
+Array
+(
+    [items_image_0] => Array
+        (
+            [name] => 
+            [full_path] => 
+            [type] => 
+            [tmp_name] => 
+            [error] => 4
+            [size] => 0
+        )
+
 )

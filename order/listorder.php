@@ -63,6 +63,7 @@ $deliveredOrders = (int) $stmtDelivered->fetchColumn();
 
 ob_start();
 ?>
+<span data-spa-title="Order Management — DLA" hidden></span>
 
 <div class="flex flex-col h-full">
 
@@ -86,10 +87,10 @@ ob_start();
     
     <div class="relative">
       <button type="button" id="orderFilterToggle"
-              class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
-        <i class="ti ti-filter"></i> Filter <i class="ti ti-chevron-down text-xs"></i>
+              class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50 action-toggle">
+        <i class="ti ti-filter pointer-events-none"></i> Filter <i class="ti ti-chevron-down text-xs pointer-events-none"></i>
       </button>
-      <div id="orderFilterMenu" class="hidden absolute left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-0 mt-1 w-72 sm:w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-4">
+      <div id="orderFilterMenu" class="hidden absolute left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-0 mt-1 w-72 sm:w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-4 action-dropdown">
         <form id="orderFilterForm">
           <div class="space-y-4">
             <div>

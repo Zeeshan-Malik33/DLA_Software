@@ -152,7 +152,9 @@ if ($order) {
 }
 
 ob_start();
-
+?>
+<span data-spa-title="Edit Order — DLA" hidden></span>
+<?php
 if (!$order):
 ?>
   <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-10 text-center text-gray-400">
@@ -249,27 +251,27 @@ else:
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
       <h3 class="font-semibold text-gray-900 mb-4">Order Summary</h3>
       <div class="space-y-3 text-sm">
-        <div class="flex justify-between text-gray-600"><span>Subtotal</span> <span id="sumSubtotal">PKR 0</span></div>
+        <div class="flex justify-between text-gray-600"><span>Subtotal</span> <span id="sumSubtotal">Rs. 0</span></div>
         <div class="flex justify-between items-center text-gray-600">
           <span>Cost of Goods</span>
-          <input type="number" name="cost_of_goods" placeholder="e.g. 500" value="<?= h($order['cost_of_goods']) ?>" min="0" step="0.01"
+          <input type="text" inputmode="decimal" name="cost_of_goods" placeholder="e.g. 500" value="<?= h($order['cost_of_goods']) ?>" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1')"
                  class="w-28 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand">
         </div>
         <div class="flex justify-between items-center text-gray-600">
           <span>Shipping</span>
-          <input type="number" name="shipping_cost" id="shippingInput" value="<?= h($order['shipping_cost']) ?>" min="0" step="0.01"
+          <input type="text" inputmode="decimal" name="shipping_cost" id="shippingInput" value="<?= h($order['shipping_cost']) ?>" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1')"
                  class="w-28 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand">
         </div>
       </div>
       <div class="flex justify-between items-center border-t border-gray-100 mt-4 pt-4">
         <span class="font-semibold text-gray-900">Grand Total</span>
-        <span id="sumGrandTotal" class="font-bold text-brand text-lg">PKR 0</span>
+        <span id="sumGrandTotal" class="font-bold text-brand text-lg">Rs. 0</span>
       </div>
     </div>
 
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
       <h3 class="font-semibold text-gray-900 mb-3">Amount Paid</h3>
-      <input type="number" name="amount_paid" value="<?= h($order['amount_paid']) ?>" min="0" step="0.01"
+      <input type="text" inputmode="decimal" name="amount_paid" value="<?= h($order['amount_paid']) ?>" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1')"
              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
       <p class="text-xs text-gray-400 mt-2">Adjust directly. For itemized installment history, use Payment Management.</p>
     </div>
