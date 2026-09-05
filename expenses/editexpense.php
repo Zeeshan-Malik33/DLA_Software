@@ -51,7 +51,9 @@ $stmt->execute([$id, $_SESSION['user_id']]);
 $expense = $stmt->fetch();
 
 ob_start();
-
+?>
+<span data-spa-title="Edit Expense — DLA" hidden></span>
+<?php
 if (!$expense):
 ?>
   <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-10 text-center text-gray-400">
@@ -94,7 +96,7 @@ else:
 
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-1">Amount <span class="text-red-500">*</span></label>
-      <input type="number" name="amount" value="<?= h($expense['amount']) ?>" min="0" step="0.01"
+      <input type="text" inputmode="numeric" name="amount" value="<?= (int) $expense['amount'] ?>" oninput="this.value = this.value.replace(/[^0-9]/g, '')"
              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
       <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="amount"></p>
     </div>

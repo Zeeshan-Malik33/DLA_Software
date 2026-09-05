@@ -12,11 +12,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $id = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
 
 try {
-    // order_items, payments, and order_status_history all cascade-delete
-    // via their foreign keys, so this one statement cleans up everything.
+    $pdo->beginTransaction();
+    $pdo->prepare('DELETE FROM order_items WHERE order_id = ?')->execute([$id]);
+    $pdo->prepare('DELETE FROM payments WHERE order_id = ?')->execute([$id]);
+    $pdo->prepare('DELETE FROM order_status_history WHERE order_id = ?')->execute([$id]);
+    
     $stmt = $pdo->prepare('DELETE FROM orders WHERE order_id = ?');
     $stmt->execute([$id]);
+    $pdo->commit();
     echo json_encode(['success' => true]);
 } catch (PDOException $e) {
-    echo json_encode(['success' => false, 'message' => 'Could not delete this order.']);
+    $pdo->rollBack();
+    echo json_encode(['success' => false, 'message' => 'Could not delete this order. ' . $e->getMessage()]);
 }

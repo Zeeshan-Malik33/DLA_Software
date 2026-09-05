@@ -22,39 +22,6 @@ const CITIES_BY_COUNTRY = {
 let revenueChartInstance = null;
 let statusChartInstance = null;
 
-window.CustomConfirm = function(message) {
-  return new Promise((resolve) => {
-    const modal = document.getElementById('customDeleteModal');
-    if (!modal) {
-      resolve(confirm(message));
-      return;
-    }
-    
-    const msgEl = modal.querySelector('p');
-    if (msgEl && message) msgEl.textContent = message;
-
-    const confirmBtn = document.getElementById('customDeleteConfirm');
-    const cancelBtn = document.getElementById('customDeleteCancel');
-    const overlay = document.getElementById('customDeleteOverlay');
-
-    modal.classList.remove('hidden');
-
-    const cleanup = () => {
-      modal.classList.add('hidden');
-      confirmBtn.removeEventListener('click', onConfirm);
-      cancelBtn.removeEventListener('click', onCancel);
-      overlay.removeEventListener('click', onCancel);
-    };
-
-    const onConfirm = () => { cleanup(); resolve(true); };
-    const onCancel = () => { cleanup(); resolve(false); };
-
-    confirmBtn.addEventListener('click', onConfirm);
-    cancelBtn.addEventListener('click', onCancel);
-    overlay.addEventListener('click', onCancel);
-  });
-};
-
 // ---------------------------------------------------------
 // Navigation core
 // ---------------------------------------------------------
@@ -71,15 +38,11 @@ async function navigateTo(url, push = true) {
     content.innerHTML = html;
     if (push) history.pushState({}, '', url);
     setActiveSidebarLink(url);
-    try {
-      initPageScripts();
-    } catch (scriptErr) {
-      console.error('Page script init error:', scriptErr);
-    }
+    initPageScripts();
     window.scrollTo({ top: 0, behavior: 'instant' });
     closeMobileSidebar();
   } catch (err) {
-    console.error('Navigation error:', err);
+    console.error(err);
     window.location.href = url; // fall back to a normal page load
   } finally {
     content.classList.remove('opacity-50', 'pointer-events-none');
@@ -110,41 +73,133 @@ function closeMobileSidebar() {
   if (sidebar && window.innerWidth < 768) sidebar.classList.add('hidden');
 }
 
+// ---------------------------------------------------------
+// Custom delete confirmation modal
+// Returns a Promise<boolean> — resolves true if user confirms
+// ---------------------------------------------------------
+function confirmDelete(title, body) {
+  return new Promise((resolve) => {
+    const modal   = document.getElementById('deleteModal');
+    const box     = document.getElementById('deleteModalBox');
+    const titleEl = document.getElementById('deleteModalTitle');
+    const bodyEl  = document.getElementById('deleteModalBody');
+    const btnOk   = document.getElementById('deleteModalConfirm');
+    const btnCancel = document.getElementById('deleteModalCancel');
+    const overlay = document.getElementById('deleteModalOverlay');
+    if (!modal) { resolve(window.confirm(body)); return; }
+
+    titleEl.textContent = title || 'Confirm Deletion';
+    bodyEl.textContent  = body  || 'Are you sure? This action cannot be undone.';
+
+    // Show
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    requestAnimationFrame(() => {
+      box.classList.remove('scale-95', 'opacity-0');
+      box.classList.add('scale-100', 'opacity-100');
+    });
+
+    function close(result) {
+      box.classList.remove('scale-100', 'opacity-100');
+      box.classList.add('scale-95', 'opacity-0');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }, 180);
+      btnOk.removeEventListener('click', onOk);
+      btnCancel.removeEventListener('click', onCancel);
+      overlay.removeEventListener('click', onCancel);
+      resolve(result);
+    }
+
+    function onOk()     { close(true);  }
+    function onCancel() { close(false); }
+
+    btnOk.addEventListener('click', onOk);
+    btnCancel.addEventListener('click', onCancel);
+    overlay.addEventListener('click', onCancel);
+  });
+}
+
+// ---------------------------------------------------------
+// Toast notification (type: 'error' | 'success' | 'info')
+// ---------------------------------------------------------
+function showToast(message, type = 'error') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+
+  const colors = {
+    error:   'bg-red-600 text-white',
+    success: 'bg-emerald-600 text-white',
+    info:    'bg-gray-800 text-white',
+  };
+  const icons = { error: 'ti-alert-circle', success: 'ti-circle-check', info: 'ti-info-circle' };
+
+  const toast = document.createElement('div');
+  toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium
+    ${colors[type] || colors.info} transform translate-y-4 opacity-0 transition-all duration-300`;
+  toast.innerHTML = `<i class="ti ${icons[type] || icons.info} text-lg flex-shrink-0"></i><span>${message}</span>`;
+
+  container.appendChild(toast);
+  requestAnimationFrame(() => {
+    toast.classList.remove('translate-y-4', 'opacity-0');
+  });
+  setTimeout(() => {
+    toast.classList.add('translate-y-4', 'opacity-0');
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
 document.addEventListener('click', function (e) {
-  // Global action-toggle handler
-  const toggle = e.target.closest('.action-toggle');
-  if (toggle) {
-    const container = toggle.closest('.relative') || toggle.parentElement;
-    const dropdown = container.querySelector('.action-dropdown');
-    if (dropdown) {
+  // Handle dropdown menus
+  const isToggle = e.target.closest('.action-toggle');
+  if (isToggle) {
+    const dropdown = isToggle.nextElementSibling;
+    if (dropdown && dropdown.classList.contains('action-dropdown')) {
       const isHidden = dropdown.classList.contains('hidden');
-      document.querySelectorAll('.action-dropdown').forEach(dd => dd.classList.add('hidden'));
+      document.querySelectorAll('.action-dropdown').forEach(el => el.classList.add('hidden'));
       if (isHidden) dropdown.classList.remove('hidden');
     }
     return;
   }
   
-  // Close all action dropdowns if click is outside
   if (!e.target.closest('.action-dropdown')) {
-    document.querySelectorAll('.action-dropdown').forEach(dd => dd.classList.add('hidden'));
+    document.querySelectorAll('.action-dropdown').forEach(el => el.classList.add('hidden'));
   }
 
+  // Handle SPA links
   const link = e.target.closest('[data-spa]');
   if (!link) return;
   e.preventDefault();
-  
-  const targetUrl = link.getAttribute('href');
-  const targetObj = new URL(targetUrl, window.location.href);
-  
-  if (targetObj.pathname === window.location.pathname && targetObj.search === window.location.search) {
-    return; // Already on this page
-  }
-  
-  navigateTo(targetUrl, true);
+  navigateTo(link.getAttribute('href'), true);
 });
 
 window.addEventListener('popstate', function () {
   navigateTo(location.pathname + location.search, false);
+});
+
+document.addEventListener('change', function (e) {
+  if (e.target.classList.contains('filter-checkbox')) {
+    const field = document.getElementById(e.target.value);
+    if (field) {
+      if (e.target.checked) field.classList.remove('hidden');
+      else {
+        field.classList.add('hidden');
+        const input = field.querySelector('input, select');
+        if (input) input.value = '';
+      }
+    }
+    const form = document.getElementById('customerFilterForm');
+    if (form) {
+      const anyChecked = Array.from(document.querySelectorAll('.filter-checkbox')).some(cb => cb.checked);
+      if (anyChecked) form.classList.remove('hidden');
+      else {
+        form.classList.add('hidden');
+        // Auto submit to reset if we unchecked the last one
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      }
+    }
+  }
 });
 
 // ---------------------------------------------------------
@@ -159,8 +214,6 @@ function initPageScripts() {
   initDashboardCharts();
   initDashboardRangeForm();
   initAddOrderForm();
-  initOrderFilterForm();
-  initOrderFilterDropdownToggle();
   initOrderDeleteButtons();
   initAddPaymentForm();
   initPaymentFilterForm();
@@ -176,8 +229,8 @@ function initPageScripts() {
   initExpenseFilterForm();
   initExpenseDeleteButtons();
   initExpensePresets();
-  initExpenseFilterDropdownToggle();
-  initPaymentFilterDropdownToggle();
+  initExportExpenseToggle();
+  initBulkImportOrders();
 }
 
 function initDashboardRangeForm() {
@@ -243,16 +296,13 @@ function initCustomerForm() {
   // Dependent City dropdown
   const countrySelect = document.getElementById('countrySelect');
   const citySelect = document.getElementById('citySelect');
-  const cityList = document.getElementById('cityList');
-  if (countrySelect && citySelect && cityList) {
-    function populateCities(selected) {
-      const cities = CITIES_BY_COUNTRY[countrySelect.value] || [];
-      cityList.innerHTML = cities.map(c => `<option value="${c}"></option>`).join('');
-    }
-    countrySelect.addEventListener('change', () => populateCities(null));
-    countrySelect.addEventListener('input', () => populateCities(null));
-    populateCities(citySelect.dataset.selected || null);
+  function populateCities(selected) {
+    const cities = CITIES_BY_COUNTRY[countrySelect.value] || [];
+    citySelect.innerHTML = '<option value="">City</option>' +
+      cities.map(c => `<option value="${c}" ${c === selected ? 'selected' : ''}>${c}</option>`).join('');
   }
+  countrySelect.addEventListener('change', () => populateCities(null));
+  populateCities(citySelect.dataset.selected || null);
 
   // Submit via fetch so the sidebar never reloads
   form.addEventListener('submit', async function (e) {
@@ -322,38 +372,6 @@ function initFilterForm() {
   if (resetBtn) {
     resetBtn.addEventListener('click', () => navigateTo('listcustomer.php', true));
   }
-
-  // Filter checkboxes (for toggling fields)
-  document.querySelectorAll('.filter-checkbox').forEach(cb => {
-    if (cb.dataset.bound) return;
-    cb.dataset.bound = '1';
-    
-    cb.addEventListener('change', function() {
-      const targetId = this.value;
-      const targetEl = document.getElementById(targetId);
-      if (targetEl) {
-        if (this.checked) {
-          targetEl.classList.remove('hidden');
-        } else {
-          targetEl.classList.add('hidden');
-          targetEl.querySelectorAll('input, select').forEach(inp => inp.value = '');
-        }
-      }
-      
-      const anyChecked = Array.from(document.querySelectorAll('.filter-checkbox')).some(c => c.checked);
-      if (anyChecked) {
-        form.classList.remove('hidden');
-      } else {
-        form.classList.add('hidden');
-      }
-    });
-  });
-  
-  // Show form initially if any filter is active
-  const anyCheckedInit = Array.from(document.querySelectorAll('.filter-checkbox')).some(c => c.checked);
-  if (anyCheckedInit) {
-    form.classList.remove('hidden');
-  }
 }
 
 // ---------------------------------------------------------
@@ -364,8 +382,11 @@ function initDeleteButtons() {
     if (btn.dataset.bound) return;
     btn.dataset.bound = '1';
     btn.addEventListener('click', async function () {
-      const confirmed = await window.CustomConfirm('Are you sure you want to delete this customer? This cannot be undone.');
-      if (!confirmed) return;
+      const ok = await confirmDelete(
+        'Delete Customer',
+        'Are you sure you want to delete this customer? This action cannot be undone.'
+      );
+      if (!ok) return;
       const id = btn.dataset.deleteCustomer;
       try {
         const res = await fetch('listcustomer.php?action=delete&id=' + id, { method: 'POST' });
@@ -373,10 +394,10 @@ function initDeleteButtons() {
         if (data.success) {
           navigateTo('listcustomer.php', true);
         } else {
-          alert(data.message || 'Failed to delete this customer.');
+          showToast(data.message || 'Failed to delete this customer.');
         }
       } catch (err) {
-        alert('Network error. Please try again.');
+        showToast('Network error. Please try again.');
       }
     });
   });
@@ -453,32 +474,34 @@ function initAddOrderForm() {
     rowSeq++;
     const id = 'row' + rowSeq;
     const name = item?.product_name || '';
+    const sku = item?.sku || '';
     const qty = item?.quantity || 1;
-    const price = item?.unit_price || 0;
+    const price = item?.unit_price !== undefined ? item.unit_price : '';
     const productId = item?.product_id || '';
 
     const tr = document.createElement('tr');
     tr.dataset.rowId = id;
     tr.dataset.productId = productId;
+    tr.dataset.sku = sku;
     tr.innerHTML = `
       <td class="py-2 pr-2">
-        <input type="file" class="item-image-input hidden" accept="image/*" id="img_${id}">
-        <label for="img_${id}" class="cursor-pointer w-10 h-10 rounded bg-gray-100 flex items-center justify-center text-gray-400 hover:text-brand hover:bg-brand-50 border border-gray-200 overflow-hidden relative">
+        <label class="cursor-pointer inline-flex items-center justify-center w-10 h-10 rounded bg-gray-100 border border-gray-200 text-gray-400 hover:text-brand hover:border-brand">
           <i class="ti ti-photo"></i>
-          <img src="" class="absolute inset-0 w-full h-full object-cover hidden preview-img">
+          <input type="file" class="hidden image-input" accept="image/*">
         </label>
+        <img class="image-preview hidden w-10 h-10 object-cover rounded border border-gray-200 cursor-pointer" alt="Preview">
       </td>
       <td class="py-2 pr-2 relative">
         <input type="text" class="product-name-input w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" placeholder="Search product..." value="${name.replace(/"/g, '&quot;')}" autocomplete="off">
-        <div class="product-suggestions hidden absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"></div>
+        <div class="product-suggestions hidden absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"></div>
       </td>
       <td class="py-2 pr-2 text-center">
-        <input type="number" class="qty-input w-20 rounded-lg border border-gray-300 px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand" value="${qty}" min="1">
+        <input type="text" inputmode="numeric" class="qty-input w-20 rounded-lg border border-gray-300 px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand" value="${qty}" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
       </td>
       <td class="py-2 pr-2 text-right">
-        <input type="number" class="price-input w-24 rounded-lg border border-gray-300 px-2 py-2 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand" value="${price}" min="0" step="0.01">
+        <input type="text" inputmode="decimal" class="price-input w-24 rounded-lg border border-gray-300 px-2 py-2 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand" value="${price}" placeholder="0" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1')">
       </td>
-      <td class="py-2 pr-2 text-right line-total font-medium text-gray-800">PKR 0</td>
+      <td class="py-2 pr-2 text-right line-total font-medium text-gray-800">Rs. 0</td>
       <td class="py-2 text-right">
         <button type="button" class="remove-row text-gray-300 hover:text-red-600"><i class="ti ti-x"></i></button>
       </td>
@@ -492,28 +515,36 @@ function initAddOrderForm() {
     const priceInput = tr.querySelector('.price-input');
     const suggestBox = tr.querySelector('.product-suggestions');
     const removeBtn = tr.querySelector('.remove-row');
-    const imgInput = tr.querySelector('.item-image-input');
-    const imgPreview = tr.querySelector('.preview-img');
+    const imageInput = tr.querySelector('.image-input');
+    const imagePreview = tr.querySelector('.image-preview');
+    const label = tr.querySelector('label');
 
-    if (imgInput && imgPreview) {
-      imgInput.addEventListener('change', function() {
+    if (imageInput) {
+      imageInput.addEventListener('change', function () {
         const file = this.files[0];
         if (file) {
-          const url = URL.createObjectURL(file);
-          imgPreview.src = url;
-          imgPreview.classList.remove('hidden');
-          imgPreview.parentElement.querySelector('i').classList.add('hidden');
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            imagePreview.src = e.target.result;
+            imagePreview.classList.remove('hidden');
+            label.classList.add('hidden');
+          };
+          reader.readAsDataURL(file);
         } else {
-          imgPreview.src = '';
-          imgPreview.classList.add('hidden');
-          imgPreview.parentElement.querySelector('i').classList.remove('hidden');
+          imagePreview.classList.add('hidden');
+          imagePreview.src = '';
+          label.classList.remove('hidden');
         }
+      });
+      imagePreview.addEventListener('click', () => {
+        imageInput.click();
       });
     }
 
     let debounceTimer;
     nameInput.addEventListener('input', function () {
       tr.dataset.productId = ''; // typing invalidates the previous selection
+      tr.dataset.sku = '';
       clearTimeout(debounceTimer);
       const q = nameInput.value.trim();
       if (q.length < 2) { suggestBox.classList.add('hidden'); return; }
@@ -523,9 +554,9 @@ function initAddOrderForm() {
           const products = await res.json();
           if (!products.length) { suggestBox.classList.add('hidden'); return; }
           suggestBox.innerHTML = products.map(p =>
-            `<button type="button" class="suggestion-item block w-full text-left px-3 py-2 text-sm hover:bg-gray-50" data-id="${p.product_id}" data-price="${p.unit_price}" data-name="${p.name.replace(/"/g, '&quot;')}">
+            `<button type="button" class="suggestion-item block w-full text-left px-3 py-2 text-sm hover:bg-gray-50" data-id="${p.product_id}" data-sku="${p.sku || ''}" data-price="${p.unit_price}" data-name="${p.name.replace(/"/g, '&quot;')}">
               <span class="font-medium text-gray-800">${p.name}</span>
-              <span class="text-gray-400 text-xs block">PKR ${Number(p.unit_price).toLocaleString()}</span>
+              <span class="text-gray-400 text-xs block">${p.sku || '---'} · Rs. ${Number(p.unit_price).toLocaleString()}</span>
             </button>`
           ).join('');
           suggestBox.classList.remove('hidden');
@@ -537,6 +568,7 @@ function initAddOrderForm() {
       const item = e.target.closest('.suggestion-item');
       if (!item) return;
       nameInput.value = item.dataset.name;
+      tr.dataset.sku = item.dataset.sku || '';
       priceInput.value = item.dataset.price;
       tr.dataset.productId = item.dataset.id;
       suggestBox.classList.add('hidden');
@@ -568,17 +600,19 @@ function initAddOrderForm() {
       const qty = parseFloat(tr.querySelector('.qty-input').value) || 0;
       const price = parseFloat(tr.querySelector('.price-input').value) || 0;
       const lineTotal = qty * price;
-      tr.querySelector('.line-total').textContent = 'PKR ' + lineTotal.toLocaleString();
+      const lineTotalEl = tr.querySelector('.line-total');
+      if (lineTotalEl) lineTotalEl.textContent = 'Rs. ' + lineTotal.toLocaleString();
       subtotal += lineTotal;
     });
-    const shipping = parseFloat(document.getElementById('shippingInput').value) || 0;
-    const taxEl = document.getElementById('sumTax');
-    const tax = taxEl ? subtotal * 0.10 : 0;
-    const grandTotal = subtotal + tax + shipping;
+    const shippingInput = document.getElementById('shippingInput');
+    const shipping = shippingInput ? parseFloat(shippingInput.value) || 0 : 0;
+    const grandTotal = subtotal + shipping;
 
-    document.getElementById('sumSubtotal').textContent = 'PKR ' + subtotal.toLocaleString();
-    if (taxEl) taxEl.textContent = 'PKR ' + tax.toLocaleString();
-    document.getElementById('sumGrandTotal').textContent = 'PKR ' + grandTotal.toLocaleString();
+    const sumSubtotalEl = document.getElementById('sumSubtotal');
+    if (sumSubtotalEl) sumSubtotalEl.textContent = 'Rs. ' + subtotal.toLocaleString();
+    
+    const sumGrandTotalEl = document.getElementById('sumGrandTotal');
+    if (sumGrandTotalEl) sumGrandTotalEl.textContent = 'Rs. ' + grandTotal.toLocaleString();
   }
 
   // Seed initial rows
@@ -618,10 +652,9 @@ function initAddOrderForm() {
           results.innerHTML = customers.map(c =>
             `<button type="button" class="customer-result block w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
                data-id="${c.customer_id}" data-name="${(c.full_name || '').replace(/"/g, '&quot;')}"
-               data-instagram="${c.instagram_handle || ''}" data-whatsapp="${c.whatsapp_number || ''}" 
-               data-country="${c.country || ''}" data-city="${c.city || ''}" data-gender="${c.gender || ''}">
+               data-instagram="${c.instagram_handle || ''}" data-whatsapp="${c.whatsapp_number || ''}" data-gender="${c.gender || ''}">
               <span class="font-medium text-gray-800">${c.full_name || 'Unnamed'}</span>
-              <span class="text-gray-400 text-xs block">${c.whatsapp_number || c.instagram_handle || ''}</span>
+              <span class="text-gray-400 text-xs block">${c.whatsapp_number || ''}</span>
             </button>`
           ).join('');
           results.classList.remove('hidden');
@@ -632,31 +665,12 @@ function initAddOrderForm() {
     results.addEventListener('click', function (e) {
       const item = e.target.closest('.customer-result');
       if (!item) return;
-      document.getElementById('customerIdField').value = item.dataset.id;
-      document.getElementById('fullNameField').value = item.dataset.name;
-      
-      const instaField = document.getElementById('instagramField');
-      if(instaField) instaField.value = item.dataset.instagram;
-      
-      const waField = document.getElementById('whatsappField');
-      if(waField) waField.value = item.dataset.whatsapp;
-      
-      const countryField = document.getElementById('countrySelect');
-      if(countryField) {
-          countryField.value = item.dataset.country;
-          countryField.dispatchEvent(new Event('change')); // Trigger city list update
-      }
-      
-      const cityField = document.getElementById('citySelect');
-      if(cityField) {
-          setTimeout(() => { cityField.value = item.dataset.city; }, 50);
-      }
-
-      const mGender = document.getElementById('genderMale');
-      const fGender = document.getElementById('genderFemale');
-      if (mGender && item.dataset.gender === 'male') mGender.checked = true;
-      if (fGender && item.dataset.gender === 'female') fGender.checked = true;
-      
+      if (document.getElementById('customerIdField')) document.getElementById('customerIdField').value = item.dataset.id;
+      if (document.getElementById('fullNameField')) document.getElementById('fullNameField').value = item.dataset.name;
+      if (document.getElementById('instagramField')) document.getElementById('instagramField').value = item.dataset.instagram;
+      if (document.getElementById('whatsappField')) document.getElementById('whatsappField').value = item.dataset.whatsapp;
+      if (item.dataset.gender === 'male' && document.getElementById('genderMale')) document.getElementById('genderMale').checked = true;
+      if (item.dataset.gender === 'female' && document.getElementById('genderFemale')) document.getElementById('genderFemale').checked = true;
       results.classList.add('hidden');
       box.classList.add('hidden');
     });
@@ -677,31 +691,31 @@ function initAddOrderForm() {
     document.querySelectorAll('.field-error').forEach(el => el.classList.add('hidden'));
     document.getElementById('formGeneralError').classList.add('hidden');
 
+    const items = [];
+    let validIdx = 0;
+    Array.from(rowsBody.querySelectorAll('tr')).forEach(tr => {
+      const name = tr.querySelector('.product-name-input').value.trim();
+      if (name !== '') {
+        const imgInput = tr.querySelector('.image-input');
+        if (imgInput) imgInput.name = `items_image_${validIdx}`;
+        items.push({
+          product_id: tr.dataset.productId || null,
+          product_name: name,
+          sku: tr.dataset.sku || '',
+          quantity: parseInt(tr.querySelector('.qty-input').value, 10) || 0,
+          unit_price: parseFloat(tr.querySelector('.price-input').value) || 0,
+        });
+        validIdx++;
+      }
+    });
+
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     const originalLabel = submitBtn.textContent;
     submitBtn.textContent = 'Saving...';
 
     const formData = new FormData(form);
-    const rows = Array.from(rowsBody.querySelectorAll('tr')).filter(tr => tr.querySelector('.product-name-input').value.trim() !== '');
-    
-    let itemsJson = [];
-    rows.forEach((tr, idx) => {
-      const itemObj = {
-        product_id: tr.dataset.productId || null,
-        product_name: tr.querySelector('.product-name-input').value.trim(),
-        sku: '',
-        quantity: parseInt(tr.querySelector('.qty-input').value) || 1,
-        unit_price: parseFloat(tr.querySelector('.price-input').value) || 0,
-      };
-      itemsJson.push(itemObj);
-
-      const imgInput = tr.querySelector('.item-image-input');
-      if (imgInput && imgInput.files.length > 0) {
-        formData.append(`items_image_${idx}`, imgInput.files[0]);
-      }
-    });
-    formData.append('items', JSON.stringify(itemsJson));
+    formData.append('items', JSON.stringify(items));
 
     try {
       const res = await fetch(isEdit ? 'editorder.php' : 'addorder.php', { method: 'POST', body: formData });
@@ -738,8 +752,11 @@ function initOrderDeleteButtons() {
     if (btn.dataset.bound) return;
     btn.dataset.bound = '1';
     btn.addEventListener('click', async function () {
-      const confirmed = await window.CustomConfirm('Are you sure you want to delete this order? This cannot be undone.');
-      if (!confirmed) return;
+      const ok = await confirmDelete(
+        'Delete Order',
+        'Are you sure you want to delete this order? This action cannot be undone.'
+      );
+      if (!ok) return;
       const id = btn.dataset.deleteOrder;
       try {
         const res = await fetch('deleteorder.php?id=' + id, { method: 'POST' });
@@ -747,10 +764,10 @@ function initOrderDeleteButtons() {
         if (data.success) {
           navigateTo('listorder.php', true);
         } else {
-          alert(data.message || 'Failed to delete this order.');
+          showToast(data.message || 'Failed to delete this order.');
         }
       } catch (err) {
-        alert('Network error. Please try again.');
+        showToast('Network error. Please try again.');
       }
     });
   });
@@ -778,15 +795,14 @@ function initAddPaymentForm() {
 
   function recalcSummary() {
     const amount = parseFloat(amountInput.value) || 0;
-    sumAmountToPay.textContent = currency + ' ' + amount.toLocaleString();
+    sumAmountToPay.textContent = 'Rs. ' + amount.toLocaleString();
     const remaining = Math.max(0, outstandingBalance - amount);
-    sumRemaining.textContent = currency + ' ' + remaining.toLocaleString();
+    sumRemaining.textContent = 'Rs. ' + remaining.toLocaleString();
   }
 
   let debounceTimer;
   searchInput.addEventListener('input', function () {
     orderIdField.value = '';
-    customerField.value = '';
     clearTimeout(debounceTimer);
     const q = searchInput.value.trim();
     if (q.length < 1) { results.classList.add('hidden'); return; }
@@ -800,7 +816,7 @@ function initAddPaymentForm() {
              data-id="${o.order_id}" data-name="${(o.full_name || '').replace(/"/g, '&quot;')}"
              data-balance="${o.remaining_balance}" data-currency="${o.currency}">
             <span class="font-medium text-gray-800">#${o.order_label}</span>
-            <span class="text-gray-400 text-xs block">${o.full_name || 'Unnamed'} · Balance: ${o.currency} ${Number(o.remaining_balance).toLocaleString()}</span>
+            <span class="text-gray-400 text-xs block">${o.full_name || 'Unnamed'} · Balance: Rs. ${Number(o.remaining_balance).toLocaleString()}</span>
           </button>`
         ).join('');
         results.classList.remove('hidden');
@@ -813,10 +829,10 @@ function initAddPaymentForm() {
     if (!item) return;
     orderIdField.value = item.dataset.id;
     customerField.value = item.dataset.name;
-    searchInput.value = item.querySelector('.font-medium').textContent.trim();
+    searchInput.value = '#' + item.closest('.order-result').querySelector('.font-medium').textContent.trim();
     outstandingBalance = parseFloat(item.dataset.balance) || 0;
     currency = item.dataset.currency || 'PKR';
-    sumOutstanding.textContent = currency + ' ' + outstandingBalance.toLocaleString();
+    sumOutstanding.textContent = 'Rs. ' + outstandingBalance.toLocaleString();
     results.classList.add('hidden');
     recalcSummary();
   });
@@ -889,8 +905,11 @@ function initPaymentDeleteButtons() {
     if (btn.dataset.bound) return;
     btn.dataset.bound = '1';
     btn.addEventListener('click', async function () {
-      const confirmed = await window.CustomConfirm('Are you sure you want to delete this payment? This will adjust the order balance and cannot be undone.');
-      if (!confirmed) return;
+      const ok = await confirmDelete(
+        'Delete Payment',
+        'Are you sure you want to delete this payment? This will adjust the order balance and cannot be undone.'
+      );
+      if (!ok) return;
       const id = btn.dataset.deletePayment;
       try {
         const res = await fetch('listpayment.php?action=delete&id=' + id, { method: 'POST' });
@@ -898,10 +917,10 @@ function initPaymentDeleteButtons() {
         if (data.success) {
           navigateTo('listpayment.php', true);
         } else {
-          alert(data.message || 'Failed to delete this payment.');
+          showToast(data.message || 'Failed to delete this payment.');
         }
       } catch (err) {
-        alert('Network error. Please try again.');
+        showToast('Network error. Please try again.');
       }
     });
   });
@@ -926,7 +945,7 @@ function initPaymentViewModal() {
     if (btn.dataset.bound) return;
     btn.dataset.bound = '1';
     btn.addEventListener('click', function () {
-      const row = btn.closest('tr');
+      const row = btn.closest('[data-payment]');
       const payment = JSON.parse(row.dataset.payment);
       body.innerHTML = Object.entries(labels).map(([key, label]) => `
         <div class="flex justify-between border-b border-gray-50 pb-2">
@@ -1092,10 +1111,6 @@ function initProfileForm() {
 
       if (data.success) {
         document.getElementById('profileSuccess').classList.remove('hidden');
-        if (data.photo_path) {
-          const newSrc = '../' + data.photo_path;
-          document.querySelectorAll('img[alt="Logo"], img[alt="Business Logo"]').forEach(img => img.src = newSrc);
-        }
       } else if (data.errors) {
         Object.entries(data.errors).forEach(([field, msg]) => {
           const el = form.querySelector(`.field-error[data-field="${field}"]`);
@@ -1250,23 +1265,6 @@ function initExpenseFilterForm() {
 }
 
 // ---------------------------------------------------------
-// Order list filters
-// ---------------------------------------------------------
-function initOrderFilterForm() {
-  const form = document.getElementById('orderFilterForm');
-  if (!form) return;
-
-  form.addEventListener('submit', function (e) {
-    e.preventDefault();
-    const params = new URLSearchParams(new FormData(form)).toString();
-    navigateTo('listorder.php' + (params ? '?' + params : ''), true);
-  });
-
-  const resetBtn = document.getElementById('resetOrderFiltersBtn');
-  if (resetBtn) resetBtn.addEventListener('click', () => navigateTo('listorder.php', true));
-}
-
-// ---------------------------------------------------------
 // Quick date-range presets (Today / This Week / This Month / This Year / All Time)
 // ---------------------------------------------------------
 function initExpensePresets() {
@@ -1315,87 +1313,232 @@ function initExpenseDeleteButtons() {
     if (btn.dataset.bound) return;
     btn.dataset.bound = '1';
     btn.addEventListener('click', async function () {
+      const ok = await confirmDelete(
+        'Delete Expense',
+        'Are you sure you want to delete this expense? This action cannot be undone.'
+      );
+      if (!ok) return;
       const id = btn.dataset.deleteExpense;
-      const confirmed = await window.CustomConfirm('Are you sure you want to delete this expense? This cannot be undone.');
-      if (confirmed) {
-        deleteExpense(id);
+      try {
+        const res = await fetch('listexpense.php?action=delete&id=' + id, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          navigateTo('listexpense.php', true);
+        } else {
+          showToast(data.message || 'Failed to delete this expense.');
+        }
+      } catch (err) {
+        showToast('Network error. Please try again.');
       }
     });
   });
+}
 
-  async function deleteExpense(id) {
+// ---------------------------------------------------------
+// Export dropdown (PDF / Excel)
+// ---------------------------------------------------------
+function initExportExpenseToggle() {
+  const toggle = document.getElementById('exportExpenseToggle');
+  const menu = document.getElementById('exportExpenseMenu');
+  if (!toggle || !menu) return;
+  if (toggle.dataset.bound) return;
+  toggle.dataset.bound = '1';
+
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.classList.toggle('hidden');
+  });
+  document.addEventListener('click', () => menu.classList.add('hidden'));
+}
+
+// ---------------------------------------------------------
+// Bulk Import Orders (Settings page)
+// ---------------------------------------------------------
+function initBulkImportOrders() {
+  const openBtn = document.getElementById('openBulkImportModal');
+  if (!openBtn) return;
+  if (openBtn.dataset.bound) return;
+  openBtn.dataset.bound = '1';
+
+  const modal = document.getElementById('bulkImportModal');
+  const closeBtn = document.getElementById('closeBulkImportModal');
+  const stepView = document.getElementById('bulkImportStepView');
+  const previewView = document.getElementById('bulkImportPreview');
+  const resultsView = document.getElementById('bulkImportResults');
+
+  const dropzone = document.getElementById('bulkImportDropzone');
+  const fileInput = document.getElementById('bulkImportFileInput');
+  const chooseBtn = document.getElementById('bulkImportChooseFile');
+  const chooseDifferentBtn = document.getElementById('bulkImportChooseDifferentFile');
+  const cancelBtn = document.getElementById('bulkImportCancel');
+  const confirmBtn = document.getElementById('bulkImportConfirm');
+  const doneBtn = document.getElementById('bulkImportDone');
+  const downloadSampleBtn = document.getElementById('downloadOrderSample');
+  const generalError = document.getElementById('bulkImportGeneralError');
+
+  let parsedRows = [];
+
+  const COLUMNS = [
+    'Order Ref', 'Customer Name', 'WhatsApp Number', 'Instagram Username', 'City', 'Country',
+    'Item Name', 'Quantity', 'Unit Price', 'Order Date', 'Expected Delivery Date',
+    'Shipping Cost', 'Cost of Goods', 'Amount Paid', 'Currency', 'Status',
+  ];
+
+  function resetModal() {
+    stepView.classList.remove('hidden');
+    previewView.classList.add('hidden');
+    resultsView.classList.add('hidden');
+    generalError.classList.add('hidden');
+    fileInput.value = '';
+    parsedRows = [];
+  }
+
+  function openModal() { resetModal(); modal.classList.remove('hidden'); }
+  function closeModal() { modal.classList.add('hidden'); }
+
+  openBtn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+  cancelBtn.addEventListener('click', closeModal);
+  doneBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+  // --- Step 1: sample download ---
+  downloadSampleBtn.addEventListener('click', function () {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const sampleRows = [
+      {
+        'Order Ref': '1001', 'Customer Name': 'Ahmad Shah', 'WhatsApp Number': '+923001234567',
+        'Instagram Username': 'ahmad.styles', 'City': 'Lahore', 'Country': 'Pakistan',
+        'Item Name': 'Vintage Dress', 'Quantity': 1, 'Unit Price': 150,
+        'Order Date': todayStr, 'Expected Delivery Date': '', 'Shipping Cost': 10,
+        'Cost of Goods': 60, 'Amount Paid': 80, 'Currency': 'PKR', 'Status': 'pending',
+      },
+      {
+        // Same Order Ref as above -> becomes a second item on the SAME order
+        'Order Ref': '1001', 'Customer Name': 'Ahmad Shah', 'WhatsApp Number': '+923001234567',
+        'Instagram Username': 'ahmad.styles', 'City': 'Lahore', 'Country': 'Pakistan',
+        'Item Name': 'Silk Scarf', 'Quantity': 2, 'Unit Price': 40,
+        'Order Date': todayStr, 'Expected Delivery Date': '', 'Shipping Cost': '',
+        'Cost of Goods': '', 'Amount Paid': '', 'Currency': '', 'Status': '',
+      },
+      {
+        // Blank Order Ref -> its own single-item order
+        'Order Ref': '', 'Customer Name': 'Zahra Noor', 'WhatsApp Number': '+923123456789',
+        'Instagram Username': 'zahra.designs', 'City': 'Karachi', 'Country': 'Pakistan',
+        'Item Name': 'Denim Jacket', 'Quantity': 1, 'Unit Price': 95,
+        'Order Date': todayStr, 'Expected Delivery Date': '', 'Shipping Cost': 8,
+        'Cost of Goods': 35, 'Amount Paid': 0, 'Currency': 'PKR', 'Status': 'pending',
+      },
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(sampleRows, { header: COLUMNS });
+    worksheet['!cols'] = COLUMNS.map(() => ({ wch: 20 }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Orders');
+    XLSX.writeFile(workbook, 'sample_orders_import.xlsx');
+  });
+
+  // --- Step 2: upload + parse ---
+  chooseBtn.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('border-blue-500', 'bg-blue-100'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('border-blue-500', 'bg-blue-100'));
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('border-blue-500', 'bg-blue-100');
+    if (e.dataTransfer.files.length) parseFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) parseFile(fileInput.files[0]);
+  });
+  if (chooseDifferentBtn) chooseDifferentBtn.addEventListener('click', resetModal);
+
+  function parseFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const workbook = XLSX.read(e.target.result, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        parsedRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        renderPreview();
+      } catch (err) {
+        generalError.textContent = 'Could not read that file. Make sure it is a valid .xlsx or .xls file.';
+        generalError.classList.remove('hidden');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // --- Step 3: preview ---
+  function renderPreview() {
+    stepView.classList.add('hidden');
+    previewView.classList.remove('hidden');
+    generalError.classList.add('hidden');
+
+    const orderKeys = new Set(parsedRows.map((r, i) => {
+      const ref = String(r['Order Ref'] || '').trim();
+      return ref !== '' ? 'ref:' + ref : 'row:' + i;
+    }));
+
+    document.getElementById('bulkImportRowCount').textContent = parsedRows.length;
+    document.getElementById('bulkImportOrderCount').textContent = orderKeys.size;
+
+    const body = document.getElementById('bulkImportPreviewBody');
+    body.innerHTML = parsedRows.map(r => `
+      <tr>
+        <td class="px-2 py-2">${r['Customer Name'] || ''}</td>
+        <td class="px-2 py-2">${r['Item Name'] || ''}</td>
+        <td class="px-2 py-2 text-right">${r['Quantity'] || ''}</td>
+        <td class="px-2 py-2 text-right">${r['Unit Price'] || ''}</td>
+        <td class="px-2 py-2">${r['Order Date'] || ''}</td>
+      </tr>
+    `).join('');
+  }
+
+  // --- Confirm import ---
+  confirmBtn.addEventListener('click', async function () {
+    if (!parsedRows.length) return;
+    confirmBtn.disabled = true;
+    const originalLabel = confirmBtn.textContent;
+    confirmBtn.textContent = 'Importing...';
+    generalError.classList.add('hidden');
+
     try {
-      const res = await fetch('listexpense.php?action=delete&id=' + id, { method: 'POST' });
+      const res = await fetch('import_orders.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsedRows),
+      });
       const data = await res.json();
-      if (data.success) {
-        navigateTo('listexpense.php', true);
+
+      if (!data.success) {
+        generalError.textContent = data.message || 'Import failed. Please try again.';
+        generalError.classList.remove('hidden');
+        return;
+      }
+
+      previewView.classList.add('hidden');
+      resultsView.classList.remove('hidden');
+
+      const summary = document.getElementById('bulkImportResultsSummary');
+      summary.innerHTML = `<i class="ti ti-circle-check-filled text-emerald-500 text-lg align-middle mr-2"></i>
+        <span class="font-medium">${data.created} order${data.created === 1 ? '' : 's'} imported successfully.</span>`;
+
+      const errorsWrap = document.getElementById('bulkImportResultsErrors');
+      const errorsList = document.getElementById('bulkImportResultsErrorList');
+      if (data.failed && data.failed.length) {
+        errorsWrap.classList.remove('hidden');
+        errorsList.innerHTML = data.failed.map(f => `<li>• ${f.customer || 'Unknown'}: ${f.reason}</li>`).join('');
       } else {
-        alert(data.message || 'Failed to delete this expense.');
+        errorsWrap.classList.add('hidden');
       }
     } catch (err) {
-      alert('Network error. Please try again.');
+      generalError.textContent = 'Network error. Please try again.';
+      generalError.classList.remove('hidden');
+    } finally {
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = originalLabel;
     }
-  }
-}
-
-// ---------------------------------------------------------
-// Expense Filter dropdown
-// ---------------------------------------------------------
-function initExpenseFilterDropdownToggle() {
-  const toggle = document.getElementById('expenseFilterToggle');
-  const menu = document.getElementById('expenseFilterMenu');
-  if (!toggle || !menu) return;
-  if (toggle.dataset.bound) return;
-  toggle.dataset.bound = '1';
-
-  toggle.addEventListener('click', (e) => {
-    e.stopPropagation();
-    menu.classList.toggle('hidden');
   });
-  menu.addEventListener('click', (e) => {
-    e.stopPropagation(); // keep menu open when interacting with form
-  });
-  document.addEventListener('click', () => menu.classList.add('hidden'));
-}
-
-// ---------------------------------------------------------
-// Order Filter dropdown
-// ---------------------------------------------------------
-function initOrderFilterDropdownToggle() {
-  const toggle = document.getElementById('orderFilterToggle');
-  const menu = document.getElementById('orderFilterMenu');
-  if (!toggle || !menu) return;
-  if (toggle.dataset.bound) return;
-  toggle.dataset.bound = '1';
-
-  toggle.addEventListener('click', (e) => {
-    e.stopPropagation();
-    menu.classList.toggle('hidden');
-  });
-  menu.addEventListener('click', (e) => {
-    e.stopPropagation(); // keep menu open when interacting with form
-  });
-  document.addEventListener('click', () => menu.classList.add('hidden'));
-}
-
-// ---------------------------------------------------------
-// Payment Filter dropdown
-// ---------------------------------------------------------
-function initPaymentFilterDropdownToggle() {
-  const toggle = document.getElementById('paymentFilterToggle');
-  const menu = document.getElementById('paymentFilterMenu');
-  if (!toggle || !menu) return;
-  if (toggle.dataset.bound) return;
-  toggle.dataset.bound = '1';
-
-  toggle.addEventListener('click', (e) => {
-    e.stopPropagation();
-    menu.classList.toggle('hidden');
-  });
-  menu.addEventListener('click', (e) => {
-    e.stopPropagation(); // keep menu open when interacting with form
-  });
-  document.addEventListener('click', () => menu.classList.add('hidden'));
 }
 
 document.addEventListener('DOMContentLoaded', function () {

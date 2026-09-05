@@ -14,10 +14,12 @@ $summary = $pdo->query("
         (SELECT COALESCE(SUM(profit), 0) FROM orders)             AS total_profit
 ")->fetch();
 
-function navClass($key, $active) {
-    return $key === $active
-        ? 'flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white bg-white/15'
-        : 'flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white/90 bg-white/5 hover:bg-white/10';
+if (!function_exists('navClass')) {
+    function navClass($key, $active) {
+        return $key === $active
+            ? 'flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white bg-white/15'
+            : 'flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white/90 bg-white/5 hover:bg-white/10';
+    }
 }
 ?>
 <!-- Mobile top bar -->
@@ -54,9 +56,6 @@ function navClass($key, $active) {
     <a href="../payment/listpayment.php" data-spa data-page="payments" class="<?= navClass('payments', $activePage) ?>">
       <i class="ti ti-credit-card"></i> Payment Management
     </a>
-    <a href="../reports/monthly_report.php" data-spa data-page="reports" class="<?= navClass('reports', $activePage) ?>">
-      <i class="ti ti-file-report"></i> Report
-    </a>
     <a href="../expenses/listexpense.php" data-spa data-page="expenses" class="<?= navClass('expenses', $activePage) ?>">
       <i class="ti ti-wallet"></i> Personal Expenses
     </a>
@@ -84,7 +83,7 @@ function navClass($key, $active) {
         </div>
       </li>
       <li class="flex items-center gap-3">
-        <span class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center"><i class="ti ti-currency-dollar"></i></span>
+        <span class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center"><i class="ti ti-currency-rupee"></i></span>
         <div>
           <p class="text-[11px] text-white/50 leading-none mb-1">Total Sales</p>
           <p class="text-sm font-semibold text-white"><?= formatMoney($summary['total_sales']) ?></p>

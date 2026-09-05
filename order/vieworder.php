@@ -30,7 +30,9 @@ if ($order) {
 }
 
 ob_start();
-
+?>
+<span data-spa-title="Order Details — DLA" hidden></span>
+<?php
 if (!$order):
 ?>
   <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-10 text-center text-gray-400">

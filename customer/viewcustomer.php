@@ -35,7 +35,9 @@ if ($customer) {
 }
 
 ob_start();
-
+?>
+<span data-spa-title="Customer Profile — DLA" hidden></span>
+<?php
 if (!$customer):
 ?>
   <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-10 text-center text-gray-400">

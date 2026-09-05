@@ -1,12 +1,37 @@
 <?php
+// ---------------------------------------------------------
+// Returns the lowest available customer_id (filling gaps left by deletions).
+// If the table is empty the result is 1.
+// ---------------------------------------------------------
+function nextCustomerId(PDO $pdo): int {
+    // Find the smallest positive gap: the minimum N where N is not present
+    // but N-1 is (or N=1). This is equivalent to:
+    //   SELECT MIN(t.customer_id + 1) FROM customers t
+    //   WHERE NOT EXISTS (SELECT 1 FROM customers t2 WHERE t2.customer_id = t.customer_id + 1)
+    // plus a fallback to 1 when the table is empty.
+    $row = $pdo->query("
+        SELECT COALESCE(
+            (SELECT MIN(t.customer_id + 1)
+             FROM customers t
+             WHERE NOT EXISTS (
+                 SELECT 1 FROM customers t2
+                 WHERE t2.customer_id = t.customer_id + 1
+             )
+             AND t.customer_id + 1 > 0),
+            1
+        ) AS next_id
+    ")->fetch();
+    return (int) $row['next_id'];
+}
+
 // Escape output safely
 function h($value) {
     return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
 }
 
-// Format a number as money with currency code
+// Format a number as money with currency symbol (PKR = Pakistani Rupee)
 function formatMoney($amount, $currency = 'PKR') {
-    return $currency . ' ' . number_format((float) $amount, 0);
+    return 'Rs. ' . number_format((float) $amount, 0);
 }
 
 // Nice label for order status

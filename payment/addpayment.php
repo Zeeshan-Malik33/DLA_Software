@@ -59,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 ob_start();
 ?>
+<span data-spa-title="Add Payment — DLA" hidden></span>
 
 <div class="mb-6">
   <h2 class="text-2xl font-bold text-gray-900">Add Payment</h2>
@@ -115,7 +116,7 @@ ob_start();
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Amount Received <span class="text-red-500">*</span></label>
-          <input type="number" name="amount" id="amountReceivedInput" placeholder="0.00" min="0" step="0.01"
+          <input type="text" inputmode="decimal" name="amount" id="amountReceivedInput" placeholder="0.00" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1')"
                  class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
           <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="amount"></p>
         </div>

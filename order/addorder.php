@@ -60,9 +60,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($existing) {
                 $customerId = $existing['customer_id'];
             } else {
-                $stmt = $pdo->prepare('INSERT INTO customers (full_name, instagram_handle, country) VALUES (?, ?, ?)');
-                $stmt->execute([$fullName, $instagram, $country]);
-                $customerId = $pdo->lastInsertId();
+                $newCustId = nextCustomerId($pdo);
+                $stmt = $pdo->prepare('INSERT INTO customers (customer_id, full_name, instagram_handle, country) VALUES (?, ?, ?, ?)');
+                $stmt->execute([$newCustId, $fullName, $instagram, $country]);
+                $customerId = $newCustId;
             }
         }
 
@@ -321,27 +322,27 @@ ob_start();
       <h3 class="font-semibold text-gray-900 mb-4">Order Summary</h3>
       <div class="space-y-3 text-sm">
         <div class="flex justify-between text-gray-600">
-          <span>Subtotal</span> <span id="sumSubtotal">PKR 0</span>
+          <span>Subtotal</span> <span id="sumSubtotal">Rs. 0</span>
         </div>
         <div class="flex justify-between items-center text-gray-600">
           <span>Shipping Weight (kg)</span>
-          <input type="number" name="shipping_weight_kg" placeholder="0.00" min="0" step="0.01"
+          <input type="text" inputmode="decimal" name="shipping_weight_kg" placeholder="0.00" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1')"
                  class="w-28 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand">
         </div>
         <div class="flex justify-between items-center text-gray-600">
           <span>Cost of Goods</span>
-          <input type="number" name="cost_of_goods" placeholder="e.g. 500" min="0" step="0.01"
+          <input type="text" inputmode="decimal" name="cost_of_goods" placeholder="e.g. 500" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1')"
                  class="w-28 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand">
         </div>
         <div class="flex justify-between items-center text-gray-600">
           <span>Shipping</span>
-          <input type="number" name="shipping_cost" id="shippingInput" value="0" min="0" step="0.01"
+          <input type="text" inputmode="decimal" name="shipping_cost" id="shippingInput" value="" placeholder="0" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1')"
                  class="w-28 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand">
         </div>
       </div>
       <div class="flex justify-between items-center border-t border-gray-100 mt-4 pt-4">
         <span class="font-semibold text-gray-900">Grand Total</span>
-        <span id="sumGrandTotal" class="font-bold text-brand text-lg">PKR 0</span>
+        <span id="sumGrandTotal" class="font-bold text-brand text-lg">Rs. 0</span>
       </div>
     </div>
 
@@ -356,7 +357,7 @@ ob_start();
           <input type="radio" name="payment_status" value="partial" class="accent-brand"> Partially paid
         </label>
         <div id="partialAmountWrap" class="hidden pl-6">
-          <input type="number" name="amount_paid" id="amountPaidInput" min="0" step="0.01" placeholder="Amount paid..."
+          <input type="text" inputmode="decimal" name="amount_paid" id="amountPaidInput" placeholder="Amount paid..." oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1')"
                  class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
         </div>
         <label class="flex items-center gap-2 text-gray-700">
