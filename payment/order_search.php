@@ -10,22 +10,22 @@ if ($q === '') {
     exit;
 }
 
-// Allow searching by "#ORD-00012", "12", or the customer's name
+// Allow searching by order number (e.g. "1", "12") or customer name
 $numeric = preg_replace('/\D/', '', $q);
 
 $stmt = $pdo->prepare('
-    SELECT o.order_id, o.remaining_balance, o.currency, c.full_name
+    SELECT o.order_id, o.remaining_balance, o.total_amount, o.currency, o.order_date, c.full_name
     FROM orders o
     JOIN customers c ON c.customer_id = o.customer_id
-    WHERE c.full_name LIKE ? OR (? <> "" AND o.order_id = ?)
-    ORDER BY o.created_at DESC
-    LIMIT 8
+    WHERE c.full_name LIKE ? OR (? <> "" AND CAST(o.order_id AS CHAR) LIKE ?)
+    ORDER BY o.order_id ASC
+    LIMIT 10
 ');
-$stmt->execute(["%$q%", $numeric, $numeric ?: 0]);
+$stmt->execute(["%$q%", $numeric, $numeric . '%']);
 $rows = $stmt->fetchAll();
 
 foreach ($rows as &$r) {
-    $r['order_label'] = 'ORD-' . str_pad($r['order_id'], 5, '0', STR_PAD_LEFT);
+    $r['order_label'] = (string)(int)$r['order_id']; // plain number: 1, 2, 3...
 }
 
 echo json_encode($rows);

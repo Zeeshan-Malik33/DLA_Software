@@ -814,7 +814,7 @@ function initAddPaymentForm() {
         results.innerHTML = orders.map(o =>
           `<button type="button" class="order-result block w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
              data-id="${o.order_id}" data-name="${(o.full_name || '').replace(/"/g, '&quot;')}"
-             data-balance="${o.remaining_balance}" data-currency="${o.currency}">
+             data-balance="${o.remaining_balance}" data-currency="${o.currency}" data-label="${o.order_label}">
             <span class="font-medium text-gray-800">#${o.order_label}</span>
             <span class="text-gray-400 text-xs block">${o.full_name || 'Unnamed'} · Balance: Rs. ${Number(o.remaining_balance).toLocaleString()}</span>
           </button>`
@@ -829,7 +829,7 @@ function initAddPaymentForm() {
     if (!item) return;
     orderIdField.value = item.dataset.id;
     customerField.value = item.dataset.name;
-    searchInput.value = '#' + item.closest('.order-result').querySelector('.font-medium').textContent.trim();
+    searchInput.value = '#' + item.dataset.label;
     outstandingBalance = parseFloat(item.dataset.balance) || 0;
     currency = item.dataset.currency || 'PKR';
     sumOutstanding.textContent = 'Rs. ' + outstandingBalance.toLocaleString();

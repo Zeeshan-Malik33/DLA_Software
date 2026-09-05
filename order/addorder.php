@@ -26,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $paymentStatus = trim($_POST['payment_status'] ?? 'pending');
     $amountPaidInput = (float) ($_POST['amount_paid'] ?? 0);
     $items = json_decode($_POST['items'] ?? '[]', true) ?: [];
+    $manualOrderNumber = isset($_POST['order_number']) && $_POST['order_number'] !== '' ? (int) $_POST['order_number'] : null;
 
     $errors = [];
     if ($fullName === '' && $customerId === 0) $errors['full_name'] = 'Full name is required.';
@@ -127,16 +128,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $productDescription = implode(', ', array_column($cleanItems, 'name'));
 
-        $stmtId = $pdo->query('
-            SELECT COALESCE(
-                (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM orders WHERE order_id = 1)),
-                (SELECT MIN(o1.order_id + 1)
-                 FROM orders o1
-                 LEFT JOIN orders o2 ON o1.order_id + 1 = o2.order_id
-                 WHERE o2.order_id IS NULL)
-            ) AS next_id
-        ');
-        $nextId = $stmtId->fetchColumn();
+        if ($manualOrderNumber !== null && $manualOrderNumber > 0) {
+            // Check the requested order number is not already taken
+            $stmtCheck = $pdo->prepare('SELECT COUNT(*) FROM orders WHERE order_id = ?');
+            $stmtCheck->execute([$manualOrderNumber]);
+            if ($stmtCheck->fetchColumn() > 0) {
+                $pdo->rollBack();
+                echo json_encode(['success' => false, 'errors' => ['order_number' => "Order number {$manualOrderNumber} already exists. Please choose a different number."]]);
+                exit;
+            }
+            $nextId = $manualOrderNumber;
+        } else {
+            $stmtId = $pdo->query('
+                SELECT COALESCE(
+                    (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM orders WHERE order_id = 1)),
+                    (SELECT MIN(o1.order_id + 1)
+                     FROM orders o1
+                     LEFT JOIN orders o2 ON o1.order_id + 1 = o2.order_id
+                     WHERE o2.order_id IS NULL)
+                ) AS next_id
+            ');
+            $nextId = $stmtId->fetchColumn();
+        }
 
         $status = $_POST['status'] ?? 'pending';
         $stmt = $pdo->prepare('
@@ -290,6 +303,13 @@ ob_start();
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
       <h3 class="font-semibold text-gray-900 mb-4">Order Details</h3>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-5">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Order Number</label>
+          <input type="number" name="order_number" id="orderNumberField" min="1" step="1" placeholder="Auto (leave blank)" oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                 class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
+          <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="order_number"></p>
+          <p class="text-xs text-gray-400 mt-1">Leave blank to auto-assign.</p>
+        </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Order Date <span class="text-red-500">*</span></label>
           <input type="date" name="order_date" value="<?= date('Y-m-d') ?>"

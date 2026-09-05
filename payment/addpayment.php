@@ -83,8 +83,8 @@ ob_start();
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
         <div class="relative">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Select Transaction/Order <span class="text-red-500">*</span></label>
-          <input type="text" id="orderSearchInput" placeholder="Enter transaction ID..." autocomplete="off"
+          <label class="block text-sm font-medium text-gray-700 mb-1">Order Number <span class="text-red-500">*</span></label>
+          <input type="text" id="orderSearchInput" placeholder="Type order number (e.g. 1, 2) or customer name..." autocomplete="off"
                  class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
           <div id="orderSearchResults" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto"></div>
           <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="order_id"></p>

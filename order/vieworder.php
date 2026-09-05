@@ -45,7 +45,7 @@ else:
 
 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
   <div>
-    <h2 class="text-2xl font-bold text-gray-900">Order #ORD-<?= (int)$order['order_id'] ?></h2>
+    <h2 class="text-2xl font-bold text-gray-900">Order #<?= (int)$order['order_id'] ?></h2>
     <p class="text-sm text-gray-400 mt-1">
       <a href="../dashboard/index.php" data-spa data-page="dashboard" class="hover:text-brand">Dashboard</a>
       <span class="mx-1">&gt;</span>

@@ -204,7 +204,7 @@ ob_start();
         <td class="px-5 py-4 text-gray-400"><?= $i + 1 ?></td>
         <td class="px-5 py-4">
           <a href="vieworder.php?id=<?= $order['order_id'] ?>" data-spa class="font-semibold text-brand hover:underline">
-            #ORD-<?= (int)$order['order_id'] ?>
+            #<?= (int)$order['order_id'] ?>
           </a>
         </td>
         <td class="px-5 py-4 text-gray-500 whitespace-nowrap"><?= date('M j, Y', strtotime($order['order_date'])) ?></td>

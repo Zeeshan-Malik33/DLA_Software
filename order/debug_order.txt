@@ -126,3 +126,36 @@ Array
         )
 
 )
+POST Data:
+Array
+(
+    [customer_id] => 
+    [full_name] => Zeeshan Malik
+    [instagram_handle] => 
+    [country] => 
+    [order_number] => 1
+    [order_date] => 2026-09-05
+    [expected_delivery_date] => 
+    [status] => pending
+    [shipping_weight_kg] => 
+    [cost_of_goods] => 
+    [shipping_cost] => 
+    [payment_status] => pending
+    [amount_paid] => 
+    [items] => [{"product_id":"22","product_name":"Coat","sku":"","quantity":1,"unit_price":100}]
+)
+
+FILES:
+Array
+(
+    [items_image_0] => Array
+        (
+            [name] => 
+            [full_path] => 
+            [type] => 
+            [tmp_name] => 
+            [error] => 4
+            [size] => 0
+        )
+
+)
