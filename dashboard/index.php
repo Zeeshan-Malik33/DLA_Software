@@ -59,49 +59,55 @@ ob_start();
 ?>
 <span data-spa-title="Dashboard — DLA" hidden></span>
 
-<div class="flex flex-col sm:flex-row sm:items-center gap-6 mb-6">
-  <div>
+<div class="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+  <div class="flex-1">
     <h2 class="text-2xl font-bold text-gray-900">Dashboard</h2>
   </div>
-  
-  <form id="dashboardRangeForm" method="GET" class="flex items-center gap-3">
+
+  <form id="dashboardRangeForm" method="GET"
+        data-filter-type="<?= h($filterType) ?>"
+        data-filter-m="<?= h($filterM) ?>"
+        data-filter-y="<?= h($filterY) ?>"
+        class="flex flex-wrap items-center gap-3">
+
+    <!-- Filter type selector -->
     <div class="relative">
-      <select name="type" onchange="toggleFilterInput(); navigateTo('index.php?' + new URLSearchParams(new FormData(this.form)).toString(), true);"
+      <select name="type" id="dashFilterType"
         class="appearance-none cursor-pointer rounded-lg border border-gray-200 bg-white shadow-sm text-sm font-medium px-4 py-2 pr-8 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors">
         <option value="monthly" <?= $filterType === 'monthly' ? 'selected' : '' ?>>Monthly</option>
-        <option value="yearly" <?= $filterType === 'yearly' ? 'selected' : '' ?>>Yearly</option>
-        <option value="all" <?= $filterType === 'all' ? 'selected' : '' ?>>All Time</option>
+        <option value="yearly"  <?= $filterType === 'yearly'  ? 'selected' : '' ?>>Yearly</option>
+        <option value="all"     <?= $filterType === 'all'     ? 'selected' : '' ?>>All Time</option>
       </select>
       <i class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
     </div>
-    
 
-           
-    <div class="relative <?= $filterType === 'monthly' ? '' : 'hidden' ?>" id="filter_monthly_wrapper">
-      <input type="month" name="m" id="filter_monthly" value="<?= h($filterM) ?>" 
-             class="cursor-pointer rounded-lg border border-gray-200 bg-white shadow-sm text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors"
-             onchange="navigateTo('index.php?' + new URLSearchParams(new FormData(this.form)).toString(), true)">
+    <!-- Monthly: calendar picker -->
+    <div id="filter_monthly_wrapper" class="<?= $filterType === 'monthly' ? '' : 'hidden' ?>">
+      <input type="month" name="m" id="dashFilterMonth" value="<?= h($filterM) ?>"
+             class="cursor-pointer rounded-lg border border-gray-200 bg-white shadow-sm text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors">
     </div>
-           
-    <div class="relative <?= $filterType === 'yearly' ? '' : 'hidden' ?>" id="filter_yearly_wrapper">
-      <select name="y" id="filter_yearly" onchange="navigateTo('index.php?' + new URLSearchParams(new FormData(this.form)).toString(), true)"
+
+    <!-- Yearly: year dropdown -->
+    <div id="filter_yearly_wrapper" class="relative <?= $filterType === 'yearly' ? '' : 'hidden' ?>">
+      <select name="y" id="dashFilterYear"
               class="appearance-none cursor-pointer rounded-lg border border-gray-200 bg-white shadow-sm text-sm font-medium px-4 py-2 pr-8 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors">
-          <?php for($yr = (int)date('Y'); $yr >= 2020; $yr--): ?>
-             <option value="<?= $yr ?>" <?= $filterY == $yr ? 'selected' : '' ?>><?= $yr ?></option>
-          <?php endfor; ?>
+        <?php for($yr = (int)date('Y'); $yr >= 2020; $yr--): ?>
+          <option value="<?= $yr ?>" <?= $filterY == $yr ? 'selected' : '' ?>><?= $yr ?></option>
+        <?php endfor; ?>
       </select>
       <i class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
     </div>
-    
-    <script>
-      function toggleFilterInput() {
-         const type = document.querySelector('select[name="type"]').value;
-         document.getElementById('filter_monthly_wrapper').classList.toggle('hidden', type !== 'monthly');
-         document.getElementById('filter_yearly_wrapper').classList.toggle('hidden', type !== 'yearly');
-      }
-    </script>
+
+    <!-- Download PDF button -->
+    <a id="dashDownloadBtn"
+       href="export_pdf.php?type=<?= urlencode($filterType) ?>&m=<?= urlencode($filterM) ?>&y=<?= urlencode($filterY) ?>"
+       class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white shadow-sm text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-brand focus:outline-none transition-colors">
+      <i class="ti ti-file-type-pdf text-red-500"></i> Download PDF
+    </a>
+
   </form>
 </div>
+
 
 <?php
 $fmtSales = formatMoney($stats['total_sales']);

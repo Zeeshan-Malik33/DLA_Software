@@ -236,10 +236,102 @@ function initPageScripts() {
 function initDashboardRangeForm() {
   const form = document.getElementById('dashboardRangeForm');
   if (!form) return;
+
+  const typeSelect  = document.getElementById('dashFilterType');
+  const monthInput  = document.getElementById('dashFilterMonth');
+  const yearSelect  = document.getElementById('dashFilterYear');
+  const monthWrap   = document.getElementById('filter_monthly_wrapper');
+  const yearWrap    = document.getElementById('filter_yearly_wrapper');
+  const downloadBtn = document.getElementById('dashDownloadBtn');
+
+  // Toggle visible picker based on selected type
+  function applyTypeVisibility(type) {
+    if (monthWrap) monthWrap.classList.toggle('hidden', type !== 'monthly');
+    if (yearWrap)  yearWrap.classList.toggle('hidden',  type !== 'yearly');
+  }
+
+  // Build URL from current form state and update download button href
+  function buildUrl() {
+    const params = new URLSearchParams(new FormData(form));
+    return 'index.php?' + params.toString();
+  }
+
+  function updateDownloadHref() {
+    if (!downloadBtn) return;
+    const params = new URLSearchParams(new FormData(form));
+    downloadBtn.href = 'export_pdf.php?' + params.toString();
+  }
+
+  // Hidden-iframe print: intercept the download button click so the
+  // print dialog opens on the *same* tab with no extra visible page.
+  if (downloadBtn) {
+    downloadBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+
+      const url = downloadBtn.href;
+
+      // Show loading state
+      const origHtml = downloadBtn.innerHTML;
+      downloadBtn.innerHTML = '<i class="ti ti-loader-2 animate-spin"></i> Preparing…';
+      downloadBtn.style.pointerEvents = 'none';
+
+      // Create a hidden iframe
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;border:0;';
+      document.body.appendChild(iframe);
+
+      // Listen for the "ready" signal from the iframe
+      function onReady(evt) {
+        if (evt.data !== 'dla-report-ready') return;
+        window.removeEventListener('message', onReady);
+
+        // Trigger print on the iframe's window
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+
+        // Restore button after a short delay (print dialog may still be open)
+        setTimeout(function () {
+          downloadBtn.innerHTML = origHtml;
+          downloadBtn.style.pointerEvents = '';
+          // Remove iframe after print dialog is dismissed
+          setTimeout(function () { iframe.remove(); }, 2000);
+        }, 500);
+      }
+
+      window.addEventListener('message', onReady);
+      iframe.src = url;
+    });
+  }
+
+  // Navigate on type change (show/hide pickers first, then navigate)
+  if (typeSelect) {
+    typeSelect.addEventListener('change', function () {
+      applyTypeVisibility(this.value);
+      updateDownloadHref();
+      navigateTo(buildUrl(), true);
+    });
+  }
+
+  // Navigate on month picker change
+  if (monthInput) {
+    monthInput.addEventListener('change', function () {
+      updateDownloadHref();
+      navigateTo(buildUrl(), true);
+    });
+  }
+
+  // Navigate on year dropdown change
+  if (yearSelect) {
+    yearSelect.addEventListener('change', function () {
+      updateDownloadHref();
+      navigateTo(buildUrl(), true);
+    });
+  }
+
+  // Also handle form submit (fallback)
   form.addEventListener('submit', function (e) {
     e.preventDefault();
-    const params = new URLSearchParams(new FormData(form)).toString();
-    navigateTo('index.php' + (params ? '?' + params : ''), true);
+    navigateTo(buildUrl(), true);
   });
 }
 
