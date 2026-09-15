@@ -43,7 +43,7 @@ if (count($conditions) > 0) {
 // Orders list
 // ---------------------------------------------------------
 $stmt = $pdo->prepare("
-    SELECT o.order_id, o.order_date, o.status, o.total_amount, o.currency, o.amount_paid, o.remaining_balance,
+    SELECT o.order_id, o.order_date, o.status, o.total_amount, o.grand_total_display, o.currency, o.amount_paid, o.remaining_balance,
            c.full_name,
            (SELECT COALESCE(SUM(quantity), 0) FROM order_items WHERE order_id = o.order_id) AS item_count
     FROM orders o
@@ -124,12 +124,10 @@ ob_start();
               <label class="block text-xs font-semibold text-gray-600 mb-1">Status</label>
               <select name="status" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
                 <option value="">All Statuses</option>
-                <option value="pending" <?= $status === 'pending' ? 'selected' : '' ?>>Pending</option>
-                <option value="processing" <?= $status === 'processing' ? 'selected' : '' ?>>Processing</option>
-                <option value="shipped" <?= $status === 'shipped' ? 'selected' : '' ?>>Shipped</option>
-                <option value="delivered" <?= $status === 'delivered' ? 'selected' : '' ?>>Delivered</option>
-                <option value="cancelled" <?= $status === 'cancelled' ? 'selected' : '' ?>>Cancelled</option>
-                <option value="refunded" <?= $status === 'refunded' ? 'selected' : '' ?>>Refunded</option>
+                <option value="urgent" <?= $status === 'urgent' ? 'selected' : '' ?>>🔴 Urgent</option>
+                <option value="pending" <?= $status === 'pending' ? 'selected' : '' ?>>⚪ Pending</option>
+                <option value="ready_to_ship" <?= $status === 'ready_to_ship' ? 'selected' : '' ?>>🟡 Ready to Ship</option>
+                <option value="delivered" <?= $status === 'delivered' ? 'selected' : '' ?>>🔵 Delivered</option>
               </select>
             </div>
             <div>
@@ -227,7 +225,7 @@ ob_start();
     </thead>
     <tbody class="divide-y divide-gray-100">
       <?php foreach ($orders as $i => $order): $c = statusColor($order['status']); ?>
-      <tr class="text-center">
+      <tr class="text-center" style="<?= statusRowBg($order['status']) ?>">
         <td class="px-5 py-4 text-gray-400"><?= $i + 1 ?></td>
         <td class="px-5 py-4">
           <a href="vieworder.php?id=<?= $order['order_id'] ?>" data-spa class="font-semibold text-brand hover:underline">
@@ -246,8 +244,13 @@ ob_start();
         <td class="px-5 py-4 text-gray-600 font-medium">
           <?= (int) $order['item_count'] ?>
         </td>
-        <td class="px-5 py-4 text-gray-900 font-semibold">
-          <?= formatMoney($order['total_amount'], $order['currency']) ?>
+        <td class="px-5 py-4">
+          <div class="flex flex-col items-center gap-1">
+            <span class="text-gray-900 font-semibold"><?= formatMoney($order['total_amount'], $order['currency']) ?></span>
+            <?php if (!empty($order['grand_total_display'])): ?>
+              <span class="text-sm font-bold text-indigo-700 bg-indigo-100 border border-indigo-200 px-3 py-1 rounded-full whitespace-nowrap"><?= h($order['grand_total_display']) ?></span>
+            <?php endif; ?>
+          </div>
         </td>
         <td class="px-5 py-4">
           <span class="inline-flex items-center justify-center gap-1.5 <?= $c['soft'] ?> <?= $c['text'] ?> text-xs font-medium px-2.5 py-1 rounded-full">
@@ -287,7 +290,7 @@ ob_start();
 <!-- Mobile Cards -->
 <div class="grid grid-cols-1 gap-4 lg:hidden mb-6">
   <?php foreach ($orders as $order): $c = statusColor($order['status']); ?>
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 relative">
+  <div class="rounded-xl border border-gray-200 shadow-sm p-5 relative" style="<?= statusRowBg($order['status']) ?>">
     <div class="flex justify-between items-start mb-4">
       <div>
         <div class="flex items-center gap-2 mb-1">
@@ -313,6 +316,9 @@ ob_start();
       <div class="text-right">
         <p class="text-xs text-gray-400 mb-0.5">Total</p>
         <p class="text-gray-900 font-semibold"><?= formatMoney($order['total_amount'], $order['currency']) ?></p>
+        <?php if (!empty($order['grand_total_display'])): ?>
+          <span class="inline-block mt-1 text-sm font-bold text-indigo-700 bg-indigo-100 border border-indigo-200 px-3 py-1 rounded-full"><?= h($order['grand_total_display']) ?></span>
+        <?php endif; ?>
       </div>
     </div>
     

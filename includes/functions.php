@@ -36,7 +36,16 @@ function formatMoney($amount, $currency = 'PKR') {
 
 // Nice label for order status
 function statusLabel($status) {
-    return ucfirst($status);
+    return match ($status) {
+        'urgent'        => 'Urgent',
+        'pending'       => 'Pending',
+        'ready_to_ship' => 'Ready to Ship',
+        'delivered'     => 'Delivered',
+        'processing'    => 'Processing',
+        'shipped'       => 'Shipped',
+        'cancelled'     => 'Cancelled',
+        default         => ucfirst($status),
+    };
 }
 
 // Initials for a customer with no profile photo, e.g. "Mirwais Ali" -> "MA"
@@ -89,11 +98,24 @@ function expenseCategoryColor($category) {
 // Tailwind color classes per order status (used for badges/legend dots)
 function statusColor($status) {
     return match ($status) {
-        'delivered'  => ['bg' => 'bg-emerald-500', 'text' => 'text-emerald-700', 'soft' => 'bg-emerald-50'],
-        'shipped'    => ['bg' => 'bg-blue-500',    'text' => 'text-blue-700',    'soft' => 'bg-blue-50'],
-        'processing' => ['bg' => 'bg-amber-500',   'text' => 'text-amber-700',   'soft' => 'bg-amber-50'],
-        'pending'    => ['bg' => 'bg-gray-400',    'text' => 'text-gray-600',    'soft' => 'bg-gray-100'],
-        'cancelled'  => ['bg' => 'bg-red-500',     'text' => 'text-red-700',     'soft' => 'bg-red-50'],
-        default      => ['bg' => 'bg-gray-400',    'text' => 'text-gray-600',    'soft' => 'bg-gray-100'],
+        'urgent'        => ['bg' => 'bg-red-500',     'text' => 'text-red-700',     'soft' => 'bg-red-50'],
+        'pending'       => ['bg' => 'bg-gray-400',    'text' => 'text-gray-600',    'soft' => 'bg-gray-100'],
+        'ready_to_ship' => ['bg' => 'bg-yellow-500',  'text' => 'text-yellow-700',  'soft' => 'bg-yellow-50'],
+        'delivered'     => ['bg' => 'bg-blue-500',    'text' => 'text-blue-700',    'soft' => 'bg-blue-50'],
+        'processing'    => ['bg' => 'bg-amber-500',   'text' => 'text-amber-700',   'soft' => 'bg-amber-50'],
+        'shipped'       => ['bg' => 'bg-indigo-500',  'text' => 'text-indigo-700',  'soft' => 'bg-indigo-50'],
+        'cancelled'     => ['bg' => 'bg-red-500',     'text' => 'text-red-700',     'soft' => 'bg-red-50'],
+        default         => ['bg' => 'bg-gray-400',    'text' => 'text-gray-600',    'soft' => 'bg-gray-100'],
+    };
+}
+
+// Inline background style for order table rows
+function statusRowBg($status) {
+    return match ($status) {
+        'urgent'        => 'background-color: #fecaca;', // red-200
+        'pending'       => 'background-color: #e5e7eb;', // gray-200
+        'ready_to_ship' => 'background-color: #fef08a;', // yellow-200
+        'delivered'     => 'background-color: #bfdbfe;', // blue-200
+        default         => '',
     };
 }

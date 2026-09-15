@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $manualCostOfGoods = isset($_POST['cost_of_goods']) && $_POST['cost_of_goods'] !== '' ? (float) $_POST['cost_of_goods'] : null;
     $paymentStatus = trim($_POST['payment_status'] ?? 'pending');
     $amountPaidInput = (float) ($_POST['amount_paid'] ?? 0);
+    $grandTotalDisplay = trim($_POST['grand_total_display'] ?? '');
     $items = json_decode($_POST['items'] ?? '[]', true) ?: [];
     $manualOrderNumber = isset($_POST['order_number']) && $_POST['order_number'] !== '' ? (int) $_POST['order_number'] : null;
 
@@ -150,13 +151,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare('
             INSERT INTO orders
                 (order_id, customer_id, created_by, order_date, expected_delivery_date, status,
-                 product_description, total_amount, currency, amount_paid,
+                 product_description, total_amount, grand_total_display, currency, amount_paid,
                  cost_of_goods, shipping_cost, shipping_weight_kg)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, "PKR", ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, "PKR", ?, ?, ?, ?)
         ');
         $stmt->execute([
             $nextId, $customerId, $_SESSION['user_id'], $orderDate, $expectedDate, $status,
-            $productDescription, $grandTotal, $amountPaid, $costOfGoods, $shippingCost, $shippingWeight
+            $productDescription, $grandTotal, $grandTotalDisplay ?: null, $amountPaid, $costOfGoods, $shippingCost, $shippingWeight
         ]);
         $orderId = $nextId;
 
@@ -319,10 +320,10 @@ ob_start();
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Order Status</label>
           <select name="status" class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
-            <option value="pending" selected>Pending</option>
-            <option value="processing">Processing</option>
-            <option value="shipped">Shipped</option>
-            <option value="delivered">Delivered</option>
+            <option value="urgent">🔴 Urgent</option>
+            <option value="pending" selected>⚪ Pending</option>
+            <option value="ready_to_ship">🟡 Ready to Ship</option>
+            <option value="delivered">🔵 Delivered</option>
           </select>
         </div>
       </div>
@@ -366,6 +367,12 @@ ob_start();
         <span class="font-semibold text-gray-900">Grand Total</span>
         <span id="sumGrandTotal" class="font-bold text-brand text-lg">Rs. 0</span>
       </div>
+      <div class="flex justify-between items-center border-t border-gray-100 mt-3 pt-3">
+        <label class="text-sm font-medium text-gray-700" for="grandTotalDisplayInput">Display Total</label>
+        <input type="text" name="grand_total_display" id="grandTotalDisplayInput" placeholder="e.g. $600 or 500euro"
+               class="w-36 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand" maxlength="50">
+      </div>
+      <p class="text-xs text-gray-400 mt-1 text-right">Optional label shown alongside the order total.</p>
     </div>
 
 

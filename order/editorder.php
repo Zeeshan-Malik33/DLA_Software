@@ -20,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $status       = trim($_POST['status'] ?? 'pending');
     $shippingCost = (float) ($_POST['shipping_cost'] ?? 0);
     $amountPaid   = (float) ($_POST['amount_paid'] ?? 0);
+    $grandTotalDisplay = trim($_POST['grand_total_display'] ?? '');
     $items        = json_decode($_POST['items'] ?? '[]', true) ?: [];
     $manualCostOfGoods = isset($_POST['cost_of_goods']) && $_POST['cost_of_goods'] !== '' ? (float) $_POST['cost_of_goods'] : null;
 
@@ -83,11 +84,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare('
             UPDATE orders SET
                 order_date = ?, expected_delivery_date = ?, status = ?,
-                product_description = ?, total_amount = ?, amount_paid = ?,
+                product_description = ?, total_amount = ?, grand_total_display = ?, amount_paid = ?,
                 cost_of_goods = ?, shipping_cost = ?
             WHERE order_id = ?
         ');
-        $stmt->execute([$orderDate, $expectedDate, $status, $productDescription, $grandTotal, $amountPaid, $costOfGoods, $shippingCost, $id]);
+        $stmt->execute([$orderDate, $expectedDate, $status, $productDescription, $grandTotal, $grandTotalDisplay ?: null, $amountPaid, $costOfGoods, $shippingCost, $id]);
 
         if ($status !== $previousStatus) {
             $stmt = $pdo->prepare('INSERT INTO order_status_history (order_id, status, changed_by) VALUES (?, ?, ?)');
@@ -233,8 +234,8 @@ else:
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
           <select name="status" class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
-            <?php foreach (['pending', 'processing', 'shipped', 'delivered', 'cancelled'] as $s): ?>
-              <option value="<?= $s ?>" <?= $order['status'] === $s ? 'selected' : '' ?>><?= ucfirst($s) ?></option>
+            <?php foreach (['urgent' => '🔴 Urgent', 'pending' => '⚪ Pending', 'ready_to_ship' => '🟡 Ready to Ship', 'delivered' => '🔵 Delivered'] as $val => $label): ?>
+              <option value="<?= $val ?>" <?= $order['status'] === $val ? 'selected' : '' ?>><?= $label ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -271,6 +272,14 @@ else:
         <span class="font-semibold text-gray-900">Grand Total</span>
         <span id="sumGrandTotal" class="font-bold text-brand text-lg">Rs. 0</span>
       </div>
+      <div class="flex justify-between items-center border-t border-gray-100 mt-3 pt-3">
+        <label class="text-sm font-medium text-gray-700" for="grandTotalDisplayInput">Display Total</label>
+        <input type="text" name="grand_total_display" id="grandTotalDisplayInput"
+               value="<?= h($order['grand_total_display'] ?? '') ?>"
+               placeholder="e.g. $600 or 500euro"
+               class="w-36 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand" maxlength="50">
+      </div>
+      <p class="text-xs text-gray-400 mt-1 text-right">Optional label shown alongside the order total.</p>
     </div>
 
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">

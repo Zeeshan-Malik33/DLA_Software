@@ -148,6 +148,12 @@ else:
         <div class="flex justify-between border-t border-gray-100 pt-2 mt-2 font-semibold text-gray-900">
           <span>Grand Total</span><span><?= formatMoney($order['total_amount'], $order['currency']) ?></span>
         </div>
+        <?php if (!empty($order['grand_total_display'])): ?>
+        <div class="flex justify-between items-center border-t border-indigo-100 pt-2 mt-2 bg-indigo-50 rounded-lg px-3 py-2">
+          <span class="text-sm font-medium text-indigo-700">Display Total</span>
+          <span class="text-sm font-bold text-indigo-700"><?= h($order['grand_total_display']) ?></span>
+        </div>
+        <?php endif; ?>
       </div>
     </div>
 
