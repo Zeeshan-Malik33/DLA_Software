@@ -267,31 +267,31 @@ ob_start();
     <!-- Step view: instructions + download + upload -->
     <div id="bulkImportStepView">
       <div class="mb-6">
-        <h4 class="text-sm font-medium text-red-600 mb-2">STEP 1</h4>
-        <p class="text-sm text-gray-600 mb-3">Download the template and fill in your orders — one row per item. To put more than one item on the same order, repeat the same "Order Ref" on each of that order's rows.</p>
-        <button type="button" id="downloadOrderSample" class="px-4 py-2 border border-blue-300 text-blue-600 rounded-lg text-sm hover:bg-blue-50 transition-colors">
+        <h4 class="text-sm font-medium text-brand mb-2">1. Download Template</h4>
+        <p class="text-sm text-gray-600 mb-3">Download the Excel template and fill in your order details. For orders with multiple items, use the same "Order Ref" for each item row. <strong>Important:</strong> Only enter order-level totals (Shipping Cost, Cost of Goods, Amount Paid) on the first row of that order.</p>
+        <button type="button" id="downloadOrderSample" class="px-4 py-2 border border-brand/30 text-brand rounded-lg text-sm hover:bg-brand/10 transition-colors">
           Download Sample
         </button>
       </div>
 
       <div class="mb-6">
-        <h4 class="text-sm font-medium text-red-600 mb-2">STEP 2</h4>
+        <h4 class="text-sm font-medium text-brand mb-2">2. Upload File</h4>
         <p class="text-sm text-gray-600 mb-3">Upload the file <span class="font-medium">(.xlsx or .xls)</span> below.</p>
-        <div id="bulkImportDropzone" class="border-2 border-dashed border-blue-300 bg-blue-50/50 rounded-xl p-8 text-center transition-colors">
-          <div class="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
-            <i class="ti ti-upload text-2xl text-blue-500"></i>
+        <div id="bulkImportDropzone" class="border-2 border-dashed border-brand/30 bg-brand/5 rounded-xl p-8 text-center transition-colors hover:border-brand">
+          <div class="w-16 h-16 mx-auto mb-4 bg-brand/10 rounded-full flex items-center justify-center">
+            <i class="ti ti-upload text-2xl text-brand"></i>
           </div>
           <p class="text-sm text-gray-600 mb-2">Drag & Drop your file here</p>
           <p class="text-sm text-gray-400 mb-4">or</p>
           <input type="file" id="bulkImportFileInput" accept=".xls,.xlsx" class="hidden">
-          <button type="button" id="bulkImportChooseFile" class="bg-red-600 text-white px-6 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-2 hover:bg-red-700 transition-colors">
+          <button type="button" id="bulkImportChooseFile" class="bg-brand text-white px-6 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-2 hover:bg-brand-light transition-colors">
             <i class="ti ti-upload"></i> Upload File
           </button>
         </div>
       </div>
 
       <div>
-        <h4 class="text-sm font-medium text-red-600 mb-2">STEP 3</h4>
+        <h4 class="text-sm font-medium text-brand mb-2">3. Verify & Import</h4>
         <p class="text-sm text-gray-600">Verify the rows below, then complete the import.</p>
       </div>
     </div>
@@ -300,7 +300,7 @@ ob_start();
     <div id="bulkImportPreview" class="hidden mt-6">
       <div class="flex items-center justify-between mb-3">
         <p class="text-sm text-gray-700"><span id="bulkImportRowCount" class="font-semibold"></span> rows found, grouped into <span id="bulkImportOrderCount" class="font-semibold"></span> order(s).</p>
-        <button type="button" id="bulkImportChooseDifferentFile" class="text-xs text-blue-600 hover:underline">Choose a different file</button>
+        <button type="button" id="bulkImportChooseDifferentFile" class="text-xs text-brand hover:underline">Choose a different file</button>
       </div>
       <div class="border border-gray-200 rounded-lg overflow-hidden overflow-x-auto max-h-64">
         <table class="w-full text-xs">
@@ -318,21 +318,24 @@ ob_start();
       </div>
       <div id="bulkImportGeneralError" class="hidden mt-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2"></div>
       <div class="flex justify-end gap-3 mt-5">
-        <button type="button" id="bulkImportCancel" class="rounded-full border border-gray-300 bg-white text-sm font-medium px-5 py-2.5 text-gray-700 hover:bg-gray-50">Cancel</button>
-        <button type="button" id="bulkImportConfirm" class="rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-6 py-2.5">Complete Import</button>
+        <button type="button" id="bulkImportCancel" class="px-5 py-2.5 rounded-full border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">Cancel</button>
+        <button type="button" id="bulkImportConfirm" class="px-5 py-2.5 rounded-full bg-brand text-white text-sm font-medium hover:bg-brand-light transition-colors shadow-sm">
+          <i class="ti ti-check border-brand mr-1"></i> Confirm Import
+        </button>
       </div>
     </div>
 
     <!-- Results, shown after import completes -->
     <div id="bulkImportResults" class="hidden mt-6">
-      <div id="bulkImportResultsSummary" class="rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-800 text-sm px-5 py-4 mb-4"></div>
+      <div id="bulkImportResultsSummary" class="mb-4 text-sm text-gray-700"></div>
       <div id="bulkImportResultsErrors" class="hidden mb-4">
-        <p class="text-sm font-medium text-gray-700 mb-2">Rows that could not be imported:</p>
-        <ul id="bulkImportResultsErrorList" class="space-y-1 text-xs text-red-600 max-h-40 overflow-y-auto"></ul>
+        <p class="text-sm font-semibold text-red-600 mb-2">Some rows could not be imported:</p>
+        <ul id="bulkImportResultsErrorList" class="text-xs text-red-600 list-disc pl-5 space-y-1"></ul>
       </div>
-      <div class="flex justify-end gap-3">
-        <a href="../order/listorder.php" data-spa class="rounded-full border border-gray-300 bg-white text-sm font-medium px-5 py-2.5 text-gray-700 hover:bg-gray-50">View Orders</a>
-        <button type="button" id="bulkImportDone" class="rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-6 py-2.5">Done</button>
+      <div class="flex justify-end mt-6 pt-4 border-t border-gray-100">
+        <button type="button" id="bulkImportDone" class="px-5 py-2.5 rounded-full bg-brand text-white text-sm font-medium hover:bg-brand-light transition-colors">
+          Done
+        </button>
       </div>
     </div>
 

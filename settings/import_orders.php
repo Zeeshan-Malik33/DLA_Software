@@ -75,7 +75,18 @@ foreach ($groups as $key => $groupRows) {
         $autoCostOfGoods = 0;
         $cleanItems = [];
 
-        foreach ($groupRows as $row) {
+        foreach ($groupRows as $idx => $row) {
+            if ($idx > 0) {
+                // Secondary rows shouldn't have order-level costs
+                $extraShipping = trim((string) ($row['Shipping Cost'] ?? ''));
+                $extraCost     = trim((string) ($row['Cost of Goods'] ?? ''));
+                $extraPaid     = trim((string) ($row['Amount Paid'] ?? ''));
+                
+                if ($extraShipping !== '' || $extraCost !== '' || $extraPaid !== '') {
+                    throw new Exception('Order-level fields (Shipping Cost, Cost of Goods, Amount Paid) must only be entered on the first row of an order. Please leave them blank for subsequent items.');
+                }
+            }
+
             $itemName = trim((string) ($row['Item Name'] ?? ''));
             if ($itemName === '') continue;
 
@@ -108,17 +119,27 @@ foreach ($groups as $key => $groupRows) {
         $productDescription = implode(', ', array_column($cleanItems, 'name'));
 
         // --- Create the order ---
+        $stmtId = $pdo->query('
+            SELECT COALESCE(
+                (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM orders WHERE order_id = 1)),
+                (SELECT MIN(o1.order_id + 1)
+                 FROM orders o1
+                 LEFT JOIN orders o2 ON o1.order_id + 1 = o2.order_id
+                 WHERE o2.order_id IS NULL)
+            ) AS next_id
+        ');
+        $orderId = $stmtId->fetchColumn();
+
         $stmt = $pdo->prepare('
             INSERT INTO orders
-                (customer_id, created_by, order_date, expected_delivery_date, status,
+                (order_id, customer_id, created_by, order_date, expected_delivery_date, status,
                  product_description, total_amount, currency, amount_paid, cost_of_goods, shipping_cost)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ');
         $stmt->execute([
-            $customerId, $_SESSION['user_id'], $orderDate, $expectedDate, $status,
+            $orderId, $customerId, $_SESSION['user_id'], $orderDate, $expectedDate, $status,
             $productDescription, $grandTotal, $currency, $amountPaid, $costOfGoods, $shipping,
         ]);
-        $orderId = $pdo->lastInsertId();
 
         // --- Line items ---
         $stmt = $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, quantity, unit_price) VALUES (?, ?, ?, ?, ?)');

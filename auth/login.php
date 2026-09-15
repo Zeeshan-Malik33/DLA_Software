@@ -23,14 +23,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? 'login';
 
     if ($action === 'login') {
-        $email    = trim($_POST['email'] ?? '');
-        $password = $_POST['password'] ?? '';
+        $loginInput = trim($_POST['login_input'] ?? $_POST['email'] ?? '');
+        $password   = $_POST['password'] ?? '';
 
-        if ($email === '' || $password === '') {
-            $error = 'Please enter both email and password.';
+        if ($loginInput === '' || $password === '') {
+            $error = 'Please enter both username/email and password.';
         } else {
-            $stmt = $pdo->prepare('SELECT user_id, name, email, password_hash, role FROM users WHERE email = ? LIMIT 1');
-            $stmt->execute([$email]);
+            $stmt = $pdo->prepare('SELECT user_id, name, email, password_hash, role FROM users WHERE email = ? OR name = ? LIMIT 1');
+            $stmt->execute([$loginInput, $loginInput]);
             $user = $stmt->fetch();
 
             if ($user && password_verify($password, $user['password_hash'])) {
@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: ../dashboard/index.php');
                 exit;
             } else {
-                $error = 'Invalid email or password.';
+                $error = 'Invalid username/email or password.';
             }
         }
     } elseif ($action === 'forgot_password') {
@@ -125,9 +125,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <input type="hidden" name="action" value="login">
           <div>
             <input
-              type="email"
-              name="email"
-              placeholder="Enter your email"
+              type="text"
+              name="login_input"
+              placeholder="Username or Email address"
               required
               class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand"
             >

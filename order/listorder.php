@@ -6,10 +6,14 @@ require '../includes/functions.php';
 $activePage = 'orders';
 $pageTitle  = 'Order Management';
 
-$status      = $_GET['status'] ?? '';
+// ---------------------------------------------------------
+// Filters
+// ---------------------------------------------------------
+$status       = $_GET['status'] ?? '';
 $customerName = $_GET['customer_name'] ?? '';
-$dateFrom    = $_GET['date_from'] ?? '';
-$dateTo      = $_GET['date_to'] ?? '';
+$dateFrom     = $_GET['date_from'] ?? '';
+$dateTo       = $_GET['date_to'] ?? '';
+$searchQuery  = trim($_GET['search_query'] ?? '');
 
 $conditions = [];
 $params = [];
@@ -18,6 +22,17 @@ if ($status !== '') { $conditions[] = 'o.status = ?'; $params[] = $status; }
 if ($customerName !== '') { $conditions[] = 'c.full_name LIKE ?'; $params[] = "%$customerName%"; }
 if ($dateFrom !== '') { $conditions[] = 'o.order_date >= ?'; $params[] = $dateFrom; }
 if ($dateTo !== '') { $conditions[] = 'o.order_date <= ?'; $params[] = $dateTo; }
+
+if ($searchQuery !== '') {
+    if (is_numeric($searchQuery)) {
+        $conditions[] = '(o.order_id = ? OR c.full_name LIKE ?)';
+        $params[] = $searchQuery;
+        $params[] = "%$searchQuery%";
+    } else {
+        $conditions[] = 'c.full_name LIKE ?';
+        $params[] = "%$searchQuery%";
+    }
+}
 
 $where = '';
 if (count($conditions) > 0) {
@@ -40,7 +55,7 @@ $stmt = $pdo->prepare("
 $stmt->execute($params);
 $orders = $stmt->fetchAll();
 
-$isFilterApplied = ($status !== '' || $customerName !== '' || $dateFrom !== '' || $dateTo !== '');
+$isFilterApplied = ($status !== '' || $customerName !== '' || $dateFrom !== '' || $dateTo !== '' || $searchQuery !== '');
 
 // ---------------------------------------------------------
 // Stat cards
@@ -70,22 +85,34 @@ ob_start();
 <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6 shrink-0">
   <div>
     <h2 class="text-2xl font-bold text-gray-900">Order Management</h2>
-    <p class="text-sm text-gray-500 mt-1">Review, track, and manage customer orders across all channels.</p>
   </div>
-  <div class="flex flex-wrap gap-2">
+  <div class="flex flex-wrap items-center gap-2">
     <?php if ($isFilterApplied): ?>
       <a href="listorder.php" data-spa
-         class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
+         class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50 shrink-0">
         <i class="ti ti-refresh"></i> Reset
       </a>
     <?php endif; ?>
 
+    <!-- Quick Search -->
+    <div class="relative flex items-center">
+      <form id="orderQuickSearchForm" onsubmit="event.preventDefault(); navigateTo('listorder.php?search_query=' + encodeURIComponent(this.search_query.value), true);"
+            class="transition-all duration-300 ease-in-out overflow-hidden rounded-full flex items-center h-9 <?= $searchQuery !== '' ? 'w-48 sm:w-64 opacity-100 mr-2' : 'w-0 opacity-0' ?>">
+        <input type="text" name="search_query" value="<?= h($searchQuery) ?>" placeholder="Order # or Customer..."
+               class="w-full h-full rounded-full border border-gray-300 bg-white shadow-sm text-sm px-4 focus:outline-none focus:ring-2 focus:ring-brand">
+      </form>
+      <button type="button" onclick="const f = document.getElementById('orderQuickSearchForm'); f.classList.toggle('w-0'); f.classList.toggle('opacity-0'); f.classList.toggle('w-48'); f.classList.toggle('sm:w-64'); f.classList.toggle('opacity-100'); f.classList.toggle('mr-2'); if(!f.classList.contains('w-0')) f.querySelector('input').focus();"
+              class="inline-flex items-center justify-center w-9 h-9 rounded-full border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 transition-colors shrink-0">
+        <i class="ti ti-search text-lg pointer-events-none"></i>
+      </button>
+    </div>
+
     <a href="addorder.php" data-spa
-       class="inline-flex items-center gap-2 rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-4 py-2">
+       class="inline-flex items-center gap-2 rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-4 py-2 shrink-0">
       <i class="ti ti-plus"></i> Add Order
     </a>
     
-    <div class="relative">
+    <div class="relative shrink-0">
       <button type="button" id="orderFilterToggle"
               class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50 action-toggle">
         <i class="ti ti-filter pointer-events-none"></i> Filter <i class="ti ti-chevron-down text-xs pointer-events-none"></i>

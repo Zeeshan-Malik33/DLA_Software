@@ -76,7 +76,9 @@ else:
               <th class="pb-2 font-medium">Image</th>
               <th class="pb-2 font-medium text-center">Qty</th>
               <th class="pb-2 font-medium text-right">Unit Price</th>
-              <th class="pb-2 font-medium text-right">Total</th>
+              <th class="pb-2 font-medium text-right">Unit Cost</th>
+              <th class="pb-2 font-medium text-right">Price Total</th>
+              <th class="pb-2 font-medium text-right">Cost Total</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
@@ -92,7 +94,9 @@ else:
               </td>
               <td class="py-3 text-center text-gray-700"><?= (int) $item['quantity'] ?></td>
               <td class="py-3 text-right text-gray-700"><?= formatMoney($item['unit_price'], $order['currency']) ?></td>
+              <td class="py-3 text-right text-gray-700"><?= formatMoney($item['unit_cost'] ?? 0, $order['currency']) ?></td>
               <td class="py-3 text-right font-medium text-gray-800"><?= formatMoney($item['line_total'], $order['currency']) ?></td>
+              <td class="py-3 text-right font-medium text-gray-800"><?= formatMoney($item['unit_cost'] ?? 0, $order['currency']) ?></td>
             </tr>
             <?php endforeach; ?>
           </tbody>

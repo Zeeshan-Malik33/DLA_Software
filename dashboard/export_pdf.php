@@ -12,23 +12,20 @@ $logoUrl  = $logoPath ? '../' . $logoPath : '';
 // -------------------------------------------------------
 // Read filter params (same logic as dashboard/index.php)
 // -------------------------------------------------------
-$filterType = $_GET['type'] ?? 'monthly';
-$filterM    = $_GET['m']    ?? date('Y-m');
-$filterY    = $_GET['y']    ?? date('Y');
+$filterType  = $_GET['type'] ?? 'monthly';
+$filterMonth = $_GET['month'] ?? date('m');
+$filterYear  = $_GET['year'] ?? date('Y');
 
 $where  = '';
 $label  = 'All Time';
 
 if ($filterType === 'monthly') {
-    $parts = explode('-', $filterM);
-    if (count($parts) === 2) {
-        $y = (int)$parts[0];
-        $m = (int)$parts[1];
-        $where = "WHERE YEAR(o.order_date) = $y AND MONTH(o.order_date) = $m";
-        $label = date('F Y', mktime(0, 0, 0, $m, 1, $y));
-    }
+    $y = (int)$filterYear;
+    $m = (int)$filterMonth;
+    $where = "WHERE YEAR(o.order_date) = $y AND MONTH(o.order_date) = $m";
+    $label = date('F Y', mktime(0, 0, 0, $m, 1, $y));
 } elseif ($filterType === 'yearly') {
-    $y = (int)$filterY;
+    $y = (int)$filterYear;
     $where = "WHERE YEAR(o.order_date) = $y";
     $label = (string)$y;
 }

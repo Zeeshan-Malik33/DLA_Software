@@ -42,38 +42,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($items as $item) {
             $qty = max(1, (int) ($item['quantity'] ?? 1));
             $unitPrice = (float) ($item['unit_price'] ?? 0);
+            $unitCost = (float) ($item['unit_cost'] ?? 0);
             $name = trim($item['product_name'] ?? '');
             if ($name === '') continue;
 
             $productId = !empty($item['product_id']) ? (int) $item['product_id'] : null;
             $sku = trim($item['sku'] ?? '') ?: null;
-            $costPrice = 0;
 
-            if ($productId) {
-                $stmt = $pdo->prepare('SELECT cost_price FROM products WHERE product_id = ?');
-                $stmt->execute([$productId]);
-                $costPrice = (float) $stmt->fetchColumn();
-            } else {
+            if (!$productId) {
                 $stmt = $pdo->prepare('SELECT product_id FROM products WHERE name = ? LIMIT 1');
                 $stmt->execute([$name]);
                 $found = $stmt->fetch();
                 if ($found) {
                     $productId = $found['product_id'];
                 } else {
-                    $stmt = $pdo->prepare('INSERT INTO products (sku, name, unit_price, cost_price) VALUES (?, ?, ?, 0)');
-                    $stmt->execute([$sku, $name, $unitPrice]);
+                    $stmt = $pdo->prepare('INSERT INTO products (sku, name, unit_price, cost_price) VALUES (?, ?, ?, ?)');
+                    $stmt->execute([$sku, $name, $unitPrice, $unitCost]);
                     $productId = $pdo->lastInsertId();
                 }
             }
 
             $subtotal += $qty * $unitPrice;
-            $costOfGoods += $qty * $costPrice;
-            $cleanItems[] = compact('productId', 'name', 'sku', 'qty', 'unitPrice');
+            $costOfGoods += $unitCost;
+            $cleanItems[] = compact('productId', 'name', 'sku', 'qty', 'unitPrice', 'unitCost');
         }
 
-        if ($manualCostOfGoods !== null) {
-            $costOfGoods = $manualCostOfGoods;
-        }
+        // Cost of goods is exclusively based on item unit costs
+
+
+
 
         $grandTotal = round($subtotal + $shippingCost, 2);
         $productDescription = implode(', ', array_column($cleanItems, 'name'));
@@ -109,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Replace line items with the edited set
         $pdo->prepare('DELETE FROM order_items WHERE order_id = ?')->execute([$id]);
         
-        $stmt = $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, sku, quantity, unit_price, item_image) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        $stmt = $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, sku, quantity, unit_price, unit_cost, item_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
         foreach ($cleanItems as $idx => $item) {
             $imagePath = $existingImages[$item['name']] ?? null;
             $fileKey = "items_image_$idx";
@@ -125,7 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $imagePath = 'assets/uploads/order_items/' . $fileName;
                 }
             }
-            $stmt->execute([$id, $item['productId'], $item['name'], $item['sku'], $item['qty'], $item['unitPrice'], $imagePath]);
+            $stmt->execute([$id, $item['productId'], $item['name'], $item['sku'], $item['qty'], $item['unitPrice'], $item['unitCost'], $imagePath]);
         }
 
         $pdo->commit();
@@ -146,7 +143,7 @@ $order = $stmt->fetch();
 
 $items = [];
 if ($order) {
-    $stmt = $pdo->prepare('SELECT product_id, product_name, sku, quantity, unit_price, item_image FROM order_items WHERE order_id = ?');
+    $stmt = $pdo->prepare('SELECT product_id, product_name, sku, quantity, unit_price, unit_cost, item_image FROM order_items WHERE order_id = ?');
     $stmt->execute([$id]);
     $items = $stmt->fetchAll();
 }
@@ -253,14 +250,21 @@ else:
       <div class="space-y-3 text-sm">
         <div class="flex justify-between text-gray-600"><span>Subtotal</span> <span id="sumSubtotal">Rs. 0</span></div>
         <div class="flex justify-between items-center text-gray-600">
-          <span>Cost of Goods</span>
-          <input type="text" inputmode="decimal" name="cost_of_goods" placeholder="e.g. 500" value="<?= h($order['cost_of_goods']) ?>" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1')"
-                 class="w-28 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand">
-        </div>
-        <div class="flex justify-between items-center text-gray-600">
           <span>Shipping</span>
           <input type="text" inputmode="decimal" name="shipping_cost" id="shippingInput" value="<?= h($order['shipping_cost']) ?>" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1')"
                  class="w-28 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand">
+        </div>
+
+        <!-- Dynamic per-product cost inputs -->
+        <div id="productCostSection" class="hidden border-t border-gray-100 pt-3 mt-1">
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Product Costs</p>
+          <div id="productCostRows" class="space-y-2"></div>
+        </div>
+
+        <div class="flex justify-between items-center text-gray-600 border-t border-gray-100 pt-3 mt-1">
+          <span class="font-medium text-gray-700">Cost of Goods</span>
+          <span id="costOfGoodsDisplay" class="font-semibold text-gray-800">Rs. 0</span>
+          <input type="hidden" name="cost_of_goods" id="costOfGoodsHidden" value="<?= h($order['cost_of_goods']) ?>">
         </div>
       </div>
       <div class="flex justify-between items-center border-t border-gray-100 mt-4 pt-4">

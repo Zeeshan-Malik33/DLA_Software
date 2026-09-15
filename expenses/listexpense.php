@@ -19,21 +19,23 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && $_SERVER['REQUEST_
     exit;
 }
 
-// ---------------------------------------------------------
-// Filters
-// ---------------------------------------------------------
-$search   = trim($_GET['search'] ?? '');
-$category = trim($_GET['category'] ?? '');
-$dateFrom = trim($_GET['date_from'] ?? '');
-$dateTo   = trim($_GET['date_to'] ?? '');
+$filterMonth = $_GET['month'] ?? date('m');
+$filterYear  = $_GET['year'] ?? date('Y');
+
+$currentY = (int)$filterYear;
+$currentM = (int)$filterMonth;
 
 $conditions = ['created_by = ?'];
 $params = [$_SESSION['user_id']];
 
-if ($search !== '')   { $conditions[] = '(name LIKE ? OR description LIKE ?)'; $params[] = "%$search%"; $params[] = "%$search%"; }
-if ($category !== '') { $conditions[] = 'category = ?'; $params[] = $category; }
-if ($dateFrom !== '')  { $conditions[] = 'expense_date >= ?'; $params[] = $dateFrom; }
-if ($dateTo !== '')    { $conditions[] = 'expense_date <= ?'; $params[] = $dateTo; }
+if ($currentM > 0) {
+    $conditions[] = 'MONTH(expense_date) = ?';
+    $params[] = $currentM;
+}
+if ($currentY > 0) {
+    $conditions[] = 'YEAR(expense_date) = ?';
+    $params[] = $currentY;
+}
 
 $where = 'WHERE ' . implode(' AND ', $conditions);
 
@@ -48,19 +50,30 @@ $stmt = $pdo->prepare("SELECT COUNT(*) AS cnt, COALESCE(SUM(amount), 0) AS total
 $stmt->execute($params);
 $filteredStats = $stmt->fetch();
 
-$thisMonth = $pdo->prepare('SELECT COALESCE(SUM(amount), 0) FROM personal_expenses WHERE created_by = ? AND MONTH(expense_date) = MONTH(CURDATE()) AND YEAR(expense_date) = YEAR(CURDATE())');
-$thisMonth->execute([$_SESSION['user_id']]);
-$thisMonthTotal = (float) $thisMonth->fetchColumn();
+// $filteredStats['total'] IS the selected-month total (same $where clause filters by month+year)
+$selectedMonthTotal = (float) $filteredStats['total'];
+$selectedMonthCount = (int) $filteredStats['cnt'];
 
-$thisYear = $pdo->prepare('SELECT COALESCE(SUM(amount), 0) FROM personal_expenses WHERE created_by = ? AND YEAR(expense_date) = YEAR(CURDATE())');
-$thisYear->execute([$_SESSION['user_id']]);
-$thisYearTotal = (float) $thisYear->fetchColumn();
+// Selected year expenses (based on filter)
+$selectedYearStmt = $pdo->prepare('SELECT COALESCE(SUM(amount), 0) FROM personal_expenses WHERE created_by = ? AND YEAR(expense_date) = ?');
+$selectedYearStmt->execute([$_SESSION['user_id'], $currentY]);
+$selectedYearTotal = (float) $selectedYearStmt->fetchColumn();
 
-$stmt = $pdo->prepare("SELECT category, SUM(amount) AS total FROM personal_expenses $where GROUP BY category ORDER BY total DESC LIMIT 1");
-$stmt->execute($params);
-$topCategory = $stmt->fetch();
+// Human-readable labels for the selected period
+$monthNames = ['01'=>'January','02'=>'February','03'=>'March','04'=>'April','05'=>'May','06'=>'June','07'=>'July','08'=>'August','09'=>'September','10'=>'October','11'=>'November','12'=>'December'];
+$selectedMonthLabel = ($monthNames[sprintf('%02d', $currentM)] ?? '') . ' ' . $currentY;
+$selectedYearLabel  = (string)$currentY;
 
-$isFilterApplied = ($category !== '' || $dateFrom !== '' || $dateTo !== '');
+// Actual Profit Calculation
+$stmt = $pdo->query("SELECT COALESCE(SUM(profit), 0) FROM orders");
+$totalSystemProfit = (float)$stmt->fetchColumn();
+
+$stmt = $pdo->query("SELECT COUNT(*) AS cnt, COALESCE(SUM(amount), 0) AS total FROM personal_expenses");
+$sysExp = $stmt->fetch();
+$totalSystemExpensesCount = (int)$sysExp['cnt'];
+$totalSystemExpenses = (float)$sysExp['total'];
+
+$actualProfit = $totalSystemProfit - $totalSystemExpenses;
 
 ob_start();
 ?>
@@ -76,64 +89,43 @@ ob_start();
       <span class="mx-1">&gt;</span> Personal Expenses
     </p>
   </div>
-  <div class="flex flex-wrap gap-2">
-    <?php if ($isFilterApplied): ?>
-      <a href="listexpense.php" data-spa
-         class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
-        <i class="ti ti-refresh"></i> Reset
-      </a>
-      <a href="export_pdf.php?<?= h(http_build_query($_GET)) ?>" target="_blank"
-         class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50">
-        <i class="ti ti-download"></i> Download Report
-      </a>
-    <?php endif; ?>
+  <form id="expenseRangeForm" method="GET" data-spa-form class="flex flex-wrap items-center gap-2">
+    <!-- Monthly: dropdown -->
+    <div class="relative">
+      <select name="month" onchange="this.form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))"
+              class="appearance-none cursor-pointer rounded-lg border border-gray-200 bg-white shadow-sm text-sm font-medium px-4 py-2 pr-8 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors">
+        <?php
+        $months = ['01'=>'January', '02'=>'February', '03'=>'March', '04'=>'April', '05'=>'May', '06'=>'June', '07'=>'July', '08'=>'August', '09'=>'September', '10'=>'October', '11'=>'November', '12'=>'December'];
+        foreach($months as $mVal => $mName): ?>
+          <option value="<?= $mVal ?>" <?= sprintf('%02d', $currentM) === $mVal ? 'selected' : '' ?>><?= $mName ?></option>
+        <?php endforeach; ?>
+      </select>
+      <i class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+    </div>
 
+    <!-- Yearly: dropdown -->
+    <div class="relative">
+      <select name="year" onchange="this.form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))"
+              class="appearance-none cursor-pointer rounded-lg border border-gray-200 bg-white shadow-sm text-sm font-medium px-4 py-2 pr-8 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-colors">
+        <?php for($yr = (int)date('Y'); $yr >= 2020; $yr--): ?>
+          <option value="<?= $yr ?>" <?= $currentY == $yr ? 'selected' : '' ?>><?= $yr ?></option>
+        <?php endfor; ?>
+      </select>
+      <i class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+    </div>
+
+    <!-- Export Button -->
+    <a href="export_pdf.php?<?= h(http_build_query($_GET)) ?>" target="_blank"
+       class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white shadow-sm text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-brand focus:outline-none transition-colors">
+      <i class="ti ti-file-type-pdf text-red-500"></i> PDF
+    </a>
+
+    <!-- Add Expense -->
     <a href="addexpense.php" data-spa
        class="inline-flex items-center gap-2 rounded-full bg-brand hover:bg-brand-light text-white text-sm font-medium px-4 py-2">
       <i class="ti ti-plus"></i> Add Expense
     </a>
-    <div class="relative">
-      <button type="button" id="expenseFilterToggle"
-        class="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white text-sm font-medium px-4 py-2 text-gray-700 hover:bg-gray-50 action-toggle">
-        <i class="ti ti-filter pointer-events-none"></i> Filter <i class="ti ti-chevron-down text-xs pointer-events-none"></i>
-      </button>
-      <div id="expenseFilterMenu" class="hidden absolute left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-0 mt-1 w-72 sm:w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-4 action-dropdown">
-        <form id="expenseFilterForm">
-          <div class="space-y-4">
-            <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1">Category</label>
-              <select name="category" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-                <option value="">All categories</option>
-                <?php foreach ($EXPENSE_CATEGORIES as $cat): ?>
-                  <option value="<?= h($cat) ?>" <?= $category === $cat ? 'selected' : '' ?>><?= h($cat) ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Date From</label>
-                <input type="date" name="date_from" id="expenseDateFrom" value="<?= h($dateFrom) ?>"
-                       class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Date To</label>
-                <input type="date" name="date_to" id="expenseDateTo" value="<?= h($dateTo) ?>"
-                       class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-              </div>
-            </div>
-            <div class="flex justify-end gap-2 pt-2">
-              <button type="button" id="resetFiltersBtn"
-                      class="rounded-md border border-gray-300 bg-white text-xs font-medium px-3 py-1.5 text-gray-700 hover:bg-gray-50">Reset</button>
-              <button type="submit"
-                      class="inline-flex items-center gap-1 rounded-md bg-brand hover:bg-brand-light text-white text-xs font-medium px-3 py-1.5">
-                Apply
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
+  </form>
 </div>
 
 
@@ -142,33 +134,33 @@ ob_start();
   <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
     <span class="w-11 h-11 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i class="ti ti-calculator text-lg"></i></span>
     <div>
-      <p class="text-sm text-gray-500">Total (filtered)</p>
-      <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= formatMoney($filteredStats['total']) ?></p>
-      <p class="text-xs text-gray-400 mt-1"><?= (int) $filteredStats['cnt'] ?> expense<?= $filteredStats['cnt'] == 1 ? '' : 's' ?></p>
+      <p class="text-sm text-gray-500">Total</p>
+      <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= formatMoney($totalSystemExpenses) ?></p>
+      <p class="text-xs text-gray-400 mt-1"><?= $totalSystemExpensesCount ?> expense<?= $totalSystemExpensesCount == 1 ? '' : 's' ?></p>
     </div>
   </div>
   <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
     <span class="w-11 h-11 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"><i class="ti ti-calendar-month text-lg"></i></span>
     <div>
-      <p class="text-sm text-gray-500">This Month</p>
-      <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= formatMoney($thisMonthTotal) ?></p>
-      <p class="text-xs text-gray-400 mt-1"><?= date('F Y') ?></p>
+      <p class="text-sm text-gray-500">Monthly Expenses</p>
+      <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= formatMoney($selectedMonthTotal) ?></p>
+      <p class="text-xs text-gray-400 mt-1"><?= h($selectedMonthLabel) ?></p>
     </div>
   </div>
   <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
     <span class="w-11 h-11 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0"><i class="ti ti-calendar text-lg"></i></span>
     <div>
-      <p class="text-sm text-gray-500">This Year</p>
-      <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= formatMoney($thisYearTotal) ?></p>
-      <p class="text-xs text-gray-400 mt-1"><?= date('Y') ?></p>
+      <p class="text-sm text-gray-500">Yearly Expenses</p>
+      <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= formatMoney($selectedYearTotal) ?></p>
+      <p class="text-xs text-gray-400 mt-1"><?= h($selectedYearLabel) ?></p>
     </div>
   </div>
   <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
-    <span class="w-11 h-11 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><i class="ti ti-chart-pie text-lg"></i></span>
+    <span class="w-11 h-11 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><i class="ti ti-report-money text-lg"></i></span>
     <div>
-      <p class="text-sm text-gray-500">Top Category</p>
-      <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= $topCategory ? h($topCategory['category']) : '—' ?></p>
-      <p class="text-xs text-gray-400 mt-1"><?= $topCategory ? formatMoney($topCategory['total']) : 'No data' ?></p>
+      <p class="text-sm text-gray-500">Actual Profit</p>
+      <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= formatMoney($actualProfit) ?></p>
+      <p class="text-xs text-gray-400 mt-1">System Profit - Expenses</p>
     </div>
   </div>
 </div>

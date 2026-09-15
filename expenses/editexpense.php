@@ -85,14 +85,6 @@ else:
       <p class="field-error text-xs text-red-600 mt-1 hidden" data-field="name"></p>
     </div>
 
-    <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
-      <select name="category" class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
-        <?php foreach ($EXPENSE_CATEGORIES as $cat): ?>
-          <option value="<?= h($cat) ?>" <?= $expense['category'] === $cat ? 'selected' : '' ?>><?= h($cat) ?></option>
-        <?php endforeach; ?>
-      </select>
-    </div>
 
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-1">Amount <span class="text-red-500">*</span></label>

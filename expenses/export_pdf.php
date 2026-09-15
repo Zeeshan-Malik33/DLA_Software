@@ -3,17 +3,23 @@ require '../config/database.php';
 require '../includes/auth_check.php';
 require '../includes/functions.php';
 
-$search   = trim($_GET['search'] ?? '');
-$category = trim($_GET['category'] ?? '');
-$dateFrom = trim($_GET['date_from'] ?? '');
-$dateTo   = trim($_GET['date_to'] ?? '');
+$filterMonth = $_GET['month'] ?? date('m');
+$filterYear  = $_GET['year'] ?? date('Y');
+
+$currentY = (int)$filterYear;
+$currentM = (int)$filterMonth;
 
 $conditions = ['created_by = ?'];
 $params = [$_SESSION['user_id']];
-if ($search !== '')   { $conditions[] = '(name LIKE ? OR description LIKE ?)'; $params[] = "%$search%"; $params[] = "%$search%"; }
-if ($category !== '') { $conditions[] = 'category = ?'; $params[] = $category; }
-if ($dateFrom !== '')  { $conditions[] = 'expense_date >= ?'; $params[] = $dateFrom; }
-if ($dateTo !== '')    { $conditions[] = 'expense_date <= ?'; $params[] = $dateTo; }
+
+if ($currentM > 0) {
+    $conditions[] = 'MONTH(expense_date) = ?';
+    $params[] = $currentM;
+}
+if ($currentY > 0) {
+    $conditions[] = 'YEAR(expense_date) = ?';
+    $params[] = $currentY;
+}
 $where = 'WHERE ' . implode(' AND ', $conditions);
 
 $stmt = $pdo->prepare("SELECT * FROM personal_expenses $where ORDER BY expense_date DESC");
@@ -22,10 +28,7 @@ $expenses = $stmt->fetchAll();
 
 $total = array_sum(array_column($expenses, 'amount'));
 
-$rangeLabel = 'All Expenses';
-if ($dateFrom && $dateTo) $rangeLabel = date('M j, Y', strtotime($dateFrom)) . ' – ' . date('M j, Y', strtotime($dateTo));
-elseif ($dateFrom) $rangeLabel = 'From ' . date('M j, Y', strtotime($dateFrom));
-elseif ($dateTo) $rangeLabel = 'Through ' . date('M j, Y', strtotime($dateTo));
+$rangeLabel = date('F Y', mktime(0, 0, 0, $currentM, 1, $currentY));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -45,7 +48,7 @@ elseif ($dateTo) $rangeLabel = 'Through ' . date('M j, Y', strtotime($dateTo));
     <div class="flex items-center justify-between mb-6">
       <div>
         <h1 class="text-xl font-bold text-brand">Personal Expenses Report</h1>
-        <p class="text-sm text-gray-400"><?= h($rangeLabel) ?><?= $category ? ' · ' . h($category) : '' ?> · Generated <?= date('M j, Y, H:i') ?></p>
+        <p class="text-sm text-gray-400"><?= h($rangeLabel) ?> · Generated <?= date('M j, Y, H:i') ?></p>
       </div>
       <button onclick="window.print()" class="print:hidden rounded-full bg-brand text-white text-sm font-medium px-5 py-2.5">
         Print / Save as PDF

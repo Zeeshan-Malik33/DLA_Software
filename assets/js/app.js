@@ -178,6 +178,21 @@ window.addEventListener('popstate', function () {
   navigateTo(location.pathname + location.search, false);
 });
 
+// Intercept GET form submissions with data-spa-form and route via SPA
+document.addEventListener('submit', function (e) {
+  const form = e.target.closest('form[data-spa-form]');
+  if (!form) return;
+  e.preventDefault();
+  const data = new FormData(form);
+  const params = new URLSearchParams();
+  for (const [key, value] of data.entries()) params.append(key, value);
+  // Use getAttribute (raw value) not form.action (which returns the full resolved
+  // URL including the current query string and would break on subsequent changes)
+  const rawAction = form.getAttribute('action');
+  const base = rawAction ? rawAction : location.pathname;
+  navigateTo(base + '?' + params.toString(), true);
+});
+
 document.addEventListener('change', function (e) {
   if (e.target.classList.contains('filter-checkbox')) {
     const field = document.getElementById(e.target.value);
@@ -643,11 +658,13 @@ function initAddOrderForm() {
     const qty = item?.quantity || 1;
     const price = item?.unit_price !== undefined ? item.unit_price : '';
     const productId = item?.product_id || '';
+    const unitCost = item?.unit_cost !== undefined ? item.unit_cost : '';
 
     const tr = document.createElement('tr');
     tr.dataset.rowId = id;
     tr.dataset.productId = productId;
     tr.dataset.sku = sku;
+    tr.dataset.unitCost = unitCost;
     tr.innerHTML = `
       <td class="py-2 pr-2">
         <label class="cursor-pointer inline-flex items-center justify-center w-10 h-10 rounded bg-gray-100 border border-gray-200 text-gray-400 hover:text-brand hover:border-brand">
@@ -768,6 +785,75 @@ function initAddOrderForm() {
     
     const sumGrandTotalEl = document.getElementById('sumGrandTotal');
     if (sumGrandTotalEl) sumGrandTotalEl.textContent = 'Rs. ' + grandTotal.toLocaleString();
+
+    // --- Rebuild dynamic per-product cost inputs ---
+    const costSection = document.getElementById('productCostSection');
+    const costRowsContainer = document.getElementById('productCostRows');
+    const costDisplay = document.getElementById('costOfGoodsDisplay');
+    const costHidden = document.getElementById('costOfGoodsHidden');
+    if (!costSection || !costRowsContainer) return;
+
+    // Collect current product names from the product rows
+    const products = [];
+    rowsBody.querySelectorAll('tr').forEach(tr => {
+      const name = tr.querySelector('.product-name-input').value.trim();
+      if (name !== '') {
+        products.push({ name, rowId: tr.dataset.rowId, unitCost: tr.dataset.unitCost || '' });
+      }
+    });
+
+    if (products.length === 0) {
+      costSection.classList.add('hidden');
+      costRowsContainer.innerHTML = '';
+      if (costDisplay) costDisplay.textContent = 'Rs. 0';
+      if (costHidden) costHidden.value = '0';
+      return;
+    }
+
+    costSection.classList.remove('hidden');
+
+    // Preserve existing cost values by rowId
+    const existingCosts = {};
+    costRowsContainer.querySelectorAll('[data-cost-row]').forEach(el => {
+      const rid = el.dataset.costRow;
+      const input = el.querySelector('.product-cost-input');
+      if (input) existingCosts[rid] = input.value;
+    });
+
+    // Rebuild cost rows
+    costRowsContainer.innerHTML = products.map(p => {
+      const prev = existingCosts[p.rowId] !== undefined ? existingCosts[p.rowId] : p.unitCost;
+      return `<div class="flex items-center justify-between gap-2" data-cost-row="${p.rowId}">
+        <span class="text-sm text-gray-600 truncate flex-1" title="${p.name.replace(/"/g, '&quot;')}">${p.name}</span>
+        <input type="text" inputmode="decimal" value="${prev}" placeholder="0"
+               oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1')"
+               class="product-cost-input w-24 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand">
+      </div>`;
+    }).join('');
+
+    // Bind input listeners on cost inputs to recalc cost of goods
+    costRowsContainer.querySelectorAll('.product-cost-input').forEach(inp => {
+      inp.addEventListener('input', recalcCostOfGoods);
+    });
+
+    recalcCostOfGoods();
+  }
+
+  function recalcCostOfGoods() {
+    const costRowsContainer = document.getElementById('productCostRows');
+    const costDisplay = document.getElementById('costOfGoodsDisplay');
+    const costHidden = document.getElementById('costOfGoodsHidden');
+    const shippingInput = document.getElementById('shippingInput');
+    if (!costRowsContainer) return;
+
+    let totalProductCost = 0;
+    costRowsContainer.querySelectorAll('.product-cost-input').forEach(inp => {
+      totalProductCost += parseFloat(inp.value) || 0;
+    });
+    const costOfGoods = totalProductCost;
+
+    if (costDisplay) costDisplay.textContent = 'Rs. ' + costOfGoods.toLocaleString();
+    if (costHidden) costHidden.value = costOfGoods;
   }
 
   // Seed initial rows
@@ -780,7 +866,12 @@ function initAddOrderForm() {
 
   document.getElementById('addProductRow').addEventListener('click', () => addRow(null));
   const shippingInput = document.getElementById('shippingInput');
-  if (shippingInput) shippingInput.addEventListener('input', recalcTotals);
+  if (shippingInput) {
+    shippingInput.addEventListener('input', () => {
+      recalcTotals();
+      recalcCostOfGoods();
+    });
+  }
 
   // --- Quick Add: search existing customers (Add Order only) ---
   const quickAddToggle = document.getElementById('quickAddToggle');
@@ -853,12 +944,18 @@ function initAddOrderForm() {
       if (name !== '') {
         const imgInput = tr.querySelector('.image-input');
         if (imgInput) imgInput.name = `items_image_${validIdx}`;
+        
+        const rowId = tr.dataset.rowId;
+        const costRow = document.querySelector(`[data-cost-row="${rowId}"]`);
+        const unitCost = costRow ? parseFloat(costRow.querySelector('.product-cost-input').value) || 0 : 0;
+
         items.push({
           product_id: tr.dataset.productId || null,
           product_name: name,
           sku: tr.dataset.sku || '',
           quantity: parseInt(tr.querySelector('.qty-input').value, 10) || 0,
           unit_price: parseFloat(tr.querySelector('.price-input').value) || 0,
+          unit_cost: unitCost,
         });
         validIdx++;
       }
@@ -1562,32 +1659,81 @@ function initBulkImportOrders() {
     const todayStr = new Date().toISOString().slice(0, 10);
     const sampleRows = [
       {
-        'Order Ref': '1001', 'Customer Name': 'Ahmad Shah', 'WhatsApp Number': '+923001234567',
+        'Order Ref': 1, 'Customer Name': 'Ahmad Shah', 'WhatsApp Number': '+923001234567',
         'Instagram Username': 'ahmad.styles', 'City': 'Lahore', 'Country': 'Pakistan',
-        'Item Name': 'Vintage Dress', 'Quantity': 1, 'Unit Price': 150,
-        'Order Date': todayStr, 'Expected Delivery Date': '', 'Shipping Cost': 10,
-        'Cost of Goods': 60, 'Amount Paid': 80, 'Currency': 'PKR', 'Status': 'pending',
+        'Item Name': 'Embroidered Lawn Shirt', 'Quantity': 1, 'Unit Price': 2500,
+        'Order Date': todayStr, 'Expected Delivery Date': '2026-09-10', 'Shipping Cost': 250,
+        'Cost of Goods': 1200, 'Amount Paid': 1500, 'Currency': 'PKR', 'Status': 'pending',
       },
       {
-        // Same Order Ref as above -> becomes a second item on the SAME order
-        'Order Ref': '1001', 'Customer Name': 'Ahmad Shah', 'WhatsApp Number': '+923001234567',
+        // Same Order Ref as above -> 2nd item on the SAME order (Order-level costs left BLANK per rules)
+        'Order Ref': 1, 'Customer Name': 'Ahmad Shah', 'WhatsApp Number': '+923001234567',
         'Instagram Username': 'ahmad.styles', 'City': 'Lahore', 'Country': 'Pakistan',
-        'Item Name': 'Silk Scarf', 'Quantity': 2, 'Unit Price': 40,
-        'Order Date': todayStr, 'Expected Delivery Date': '', 'Shipping Cost': '',
-        'Cost of Goods': '', 'Amount Paid': '', 'Currency': '', 'Status': '',
+        'Item Name': 'Matching Dupatta', 'Quantity': 2, 'Unit Price': 800,
+        'Order Date': todayStr, 'Expected Delivery Date': '2026-09-10', 'Shipping Cost': '',
+        'Cost of Goods': '', 'Amount Paid': '', 'Currency': 'PKR', 'Status': 'pending',
       },
       {
-        // Blank Order Ref -> its own single-item order
-        'Order Ref': '', 'Customer Name': 'Zahra Noor', 'WhatsApp Number': '+923123456789',
-        'Instagram Username': 'zahra.designs', 'City': 'Karachi', 'Country': 'Pakistan',
-        'Item Name': 'Denim Jacket', 'Quantity': 1, 'Unit Price': 95,
-        'Order Date': todayStr, 'Expected Delivery Date': '', 'Shipping Cost': 8,
-        'Cost of Goods': 35, 'Amount Paid': 0, 'Currency': 'PKR', 'Status': 'pending',
+        // New Order Ref -> separate single-item order (incrementing to 2)
+        'Order Ref': 2, 'Customer Name': 'Zahra Noor', 'WhatsApp Number': '+923123456789',
+        'Instagram Username': 'zahra.official', 'City': 'Karachi', 'Country': 'Pakistan',
+        'Item Name': 'Silk Kurti', 'Quantity': 1, 'Unit Price': 4500,
+        'Order Date': todayStr, 'Expected Delivery Date': '2026-09-09', 'Shipping Cost': 200,
+        'Cost of Goods': 2100, 'Amount Paid': 4700, 'Currency': 'PKR', 'Status': 'delivered',
       },
     ];
 
     const worksheet = XLSX.utils.json_to_sheet(sampleRows, { header: COLUMNS });
-    worksheet['!cols'] = COLUMNS.map(() => ({ wch: 20 }));
+
+    // Set column widths for optimal display
+    const colWidths = [12, 20, 18, 18, 14, 14, 26, 10, 12, 14, 22, 14, 14, 14, 10, 12];
+    worksheet['!cols'] = colWidths.map(w => ({ wch: w }));
+
+    // Apply header styling matching royal blue design (with bold white text and borders)
+    const range = XLSX.utils.decode_range(worksheet['!ref']);
+
+    const headerStyle = {
+      fill: { fgColor: { rgb: "2563EB" } }, // Royal Blue header background matching reference
+      font: { name: "Arial", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "medium", color: { rgb: "1D4ED8" } },
+        bottom: { style: "medium", color: { rgb: "1D4ED8" } },
+        left: { style: "thin", color: { rgb: "60A5FA" } },
+        right: { style: "thin", color: { rgb: "60A5FA" } }
+      }
+    };
+
+    const alignRightCols = new Set(['Quantity', 'Unit Price', 'Shipping Cost', 'Cost of Goods', 'Amount Paid']);
+    const alignCenterCols = new Set(['Order Ref', 'Order Date', 'Expected Delivery Date', 'Currency', 'Status']);
+
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!worksheet[cellRef]) continue;
+
+        if (R === 0) {
+          worksheet[cellRef].s = headerStyle;
+        } else {
+          const colName = COLUMNS[C];
+          let align = 'left';
+          if (alignRightCols.has(colName)) align = 'right';
+          else if (alignCenterCols.has(colName)) align = 'center';
+
+          worksheet[cellRef].s = {
+            font: { name: "Arial", sz: 10, color: { rgb: "1F2937" } },
+            alignment: { vertical: "center", horizontal: align },
+            border: {
+              top: { style: "thin", color: { rgb: "E5E7EB" } },
+              bottom: { style: "thin", color: { rgb: "E5E7EB" } },
+              left: { style: "thin", color: { rgb: "E5E7EB" } },
+              right: { style: "thin", color: { rgb: "E5E7EB" } }
+            }
+          };
+        }
+      }
+    }
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Orders');
     XLSX.writeFile(workbook, 'sample_orders_import.xlsx');
@@ -1595,11 +1741,11 @@ function initBulkImportOrders() {
 
   // --- Step 2: upload + parse ---
   chooseBtn.addEventListener('click', () => fileInput.click());
-  dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('border-blue-500', 'bg-blue-100'); });
-  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('border-blue-500', 'bg-blue-100'));
+  dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('border-brand', 'bg-brand/10'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('border-brand', 'bg-brand/10'));
   dropzone.addEventListener('drop', (e) => {
     e.preventDefault();
-    dropzone.classList.remove('border-blue-500', 'bg-blue-100');
+    dropzone.classList.remove('border-brand', 'bg-brand/10');
     if (e.dataTransfer.files.length) parseFile(e.dataTransfer.files[0]);
   });
   fileInput.addEventListener('change', () => {
