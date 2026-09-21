@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
 
-        $grandTotal = round($subtotal + $shippingCost, 2);
+        $grandTotal = round($subtotal, 2);
         $productDescription = implode(', ', array_column($cleanItems, 'name'));
 
         // Was the status just changed? log it.

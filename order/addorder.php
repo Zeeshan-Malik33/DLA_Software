@@ -114,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        $grandTotal = round($subtotal + $shippingCost, 2);
+        $grandTotal = round($subtotal, 2);
 
         $amountPaid = match ($paymentStatus) {
             'paid'    => $grandTotal,

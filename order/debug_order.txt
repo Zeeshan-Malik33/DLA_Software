@@ -268,3 +268,37 @@ Array
         )
 
 )
+POST Data:
+Array
+(
+    [customer_id] => 
+    [full_name] => Zia Ullah Jan
+    [instagram_handle] => 
+    [country] => 
+    [order_number] => 
+    [order_date] => 2026-09-21
+    [expected_delivery_date] => 
+    [status] => pending
+    [shipping_weight_kg] => 5
+    [shipping_cost] => 200
+    [cost_of_goods] => 100
+    [grand_total_display] => 
+    [payment_status] => pending
+    [amount_paid] => 
+    [items] => [{"product_id":null,"product_name":"Coat","sku":"","quantity":1,"unit_price":3000,"unit_cost":100}]
+)
+
+FILES:
+Array
+(
+    [items_image_0] => Array
+        (
+            [name] => 
+            [full_path] => 
+            [type] => 
+            [tmp_name] => 
+            [error] => 4
+            [size] => 0
+        )
+
+)

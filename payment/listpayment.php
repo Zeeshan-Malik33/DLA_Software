@@ -158,7 +158,7 @@ ob_start();
 </div>
 
 <!-- Stat cards -->
-<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 shrink-0">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 shrink-0">
   <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
     <span class="w-11 h-11 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i class="ti ti-file-invoice text-lg"></i></span>
     <div>
@@ -172,14 +172,6 @@ ob_start();
     <div>
       <p class="text-sm text-gray-500">Pending Payments</p>
       <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= formatMoney($pendingPayment) ?></p>
-    </div>
-  </div>
-
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start gap-4">
-    <span class="w-11 h-11 rounded-lg bg-red-50 text-red-500 flex items-center justify-center shrink-0"><i class="ti ti-arrow-back-up text-lg"></i></span>
-    <div>
-      <p class="text-sm text-gray-500">Refunds Issued</p>
-      <p class="text-lg sm:text-2xl font-bold text-gray-900 break-all"><?= formatMoney($refundsIssued) ?></p>
     </div>
   </div>
 </div>

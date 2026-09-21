@@ -721,34 +721,9 @@ function initAddOrderForm() {
       });
     }
 
-    let debounceTimer;
     nameInput.addEventListener('input', function () {
       tr.dataset.productId = ''; // typing invalidates the previous selection
       tr.dataset.sku = '';
-      clearTimeout(debounceTimer);
-      const q = nameInput.value.trim();
-      if (q.length < 2) { hidePortal(); return; }
-      debounceTimer = setTimeout(async () => {
-        try {
-          const res = await fetch('product_search.php?q=' + encodeURIComponent(q));
-          const products = await res.json();
-          if (!products.length) { hidePortal(); return; }
-          portalActiveRow = tr;
-          productPortal.innerHTML = products.map(p =>
-            `<button type="button" class="suggestion-item block w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0" data-id="${p.product_id}" data-sku="${p.sku || ''}" data-price="${p.unit_price}" data-name="${p.name.replace(/"/g, '&quot;')}">
-              <span class="font-medium text-gray-800">${p.name}</span>
-              <span class="text-gray-400 text-xs block">${p.sku || '---'} · Rs. ${Number(p.unit_price).toLocaleString()}</span>
-            </button>`
-          ).join('');
-          positionPortal(nameInput);
-          productPortal.style.display = 'block';
-        } catch (err) { /* silent fail, manual entry still works */ }
-      }, 250);
-    });
-
-    nameInput.addEventListener('blur', function () {
-      // slight delay so mousedown on a suggestion fires first
-      setTimeout(hidePortal, 180);
     });
 
     [qtyInput, priceInput].forEach(input => input.addEventListener('input', recalcTotals));
@@ -778,7 +753,7 @@ function initAddOrderForm() {
     });
     const shippingInput = document.getElementById('shippingInput');
     const shipping = shippingInput ? parseFloat(shippingInput.value) || 0 : 0;
-    const grandTotal = subtotal + shipping;
+    const grandTotal = subtotal;
 
     const sumSubtotalEl = document.getElementById('sumSubtotal');
     if (sumSubtotalEl) sumSubtotalEl.textContent = 'Rs. ' + subtotal.toLocaleString();

@@ -28,6 +28,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    // Guard: reject overpayment
+    $stmtOrder = $pdo->prepare('SELECT total_amount, amount_paid, remaining_balance FROM orders WHERE order_id = ?');
+    $stmtOrder->execute([$orderId]);
+    $orderRow = $stmtOrder->fetch();
+    if (!$orderRow) {
+        echo json_encode(['success' => false, 'errors' => ['order_id' => 'Order not found.']]);
+        exit;
+    }
+    $remaining = (float) $orderRow['remaining_balance'];
+    if ($amount > $remaining + 0.01) { // +0.01 tolerance for floating-point
+        echo json_encode(['success' => false, 'errors' => ['amount' => "Amount exceeds the remaining balance of Rs. " . number_format($remaining, 0) . ". Please enter Rs. $remaining or less."]]);
+        exit;
+    }
+
     // Generate a unique transaction ID, e.g. TRX-84213
     do {
         $transactionId = 'TRX-' . random_int(10000, 99999);

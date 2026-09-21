@@ -30,7 +30,9 @@ $monthlyStats = $pdo->query("
     SELECT
         COALESCE(SUM(total_amount), 0)                  AS total_sales,
         COALESCE(SUM(cost_of_goods + shipping_cost), 0)  AS total_cost,
-        COALESCE(SUM(profit), 0)                         AS total_profit
+        COALESCE(SUM(profit), 0)                         AS total_profit,
+        SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) AS delivered_count,
+        COALESCE(SUM(CASE WHEN status = 'delivered' THEN total_amount ELSE 0 END), 0) AS delivered_amount
     FROM orders
     WHERE YEAR(order_date) = $currentY AND MONTH(order_date) = $currentM
 ")->fetch();
@@ -104,6 +106,9 @@ $fmtMonthlySales = formatMoney($monthlyStats['total_sales']);
 $fmtMonthlyCost = formatMoney($monthlyStats['total_cost']);
 $fmtMonthlyProfit = formatMoney($monthlyStats['total_profit']);
 
+$fmtMonthlyDeliveredCount = (int)$monthlyStats['delivered_count'];
+$fmtMonthlyDeliveredAmount = formatMoney($monthlyStats['delivered_amount']);
+
 function fitText($str) {
     $l = strlen($str);
     if ($l > 18) return 'text-base';
@@ -165,6 +170,15 @@ function fitText($str) {
     <div class="min-w-0 flex-1">
       <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-1 truncate">Monthly Profit</p>
       <p class="font-bold text-gray-900 truncate <?= fitText($fmtMonthlyProfit) ?>" title="<?= $fmtMonthlyProfit ?>"><?= $fmtMonthlyProfit ?></p>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center gap-4 min-w-0">
+    <div class="w-12 h-12 shrink-0 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl">
+      <i class="ti ti-truck-delivery"></i>
+    </div>
+    <div class="min-w-0 flex-1">
+      <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-1 truncate">Monthly Delivered</p>
+      <p class="font-bold text-gray-900 truncate <?= fitText($fmtMonthlyDeliveredAmount) ?>" title="<?= $fmtMonthlyDeliveredAmount ?> (<?= $fmtMonthlyDeliveredCount ?> Orders)"><?= $fmtMonthlyDeliveredAmount ?></p>
     </div>
   </div>
 </div>
