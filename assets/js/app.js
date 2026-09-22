@@ -167,6 +167,40 @@ document.addEventListener('click', function (e) {
     document.querySelectorAll('.action-dropdown').forEach(el => el.classList.add('hidden'));
   }
 
+  // Handle image preview
+  const previewBtn = e.target.closest('[data-preview-src]');
+  if (previewBtn) {
+    const src = previewBtn.dataset.previewSrc;
+    const modal = document.getElementById('imagePreviewModal');
+    const img = document.getElementById('previewModalImg');
+    const dlBtn = document.getElementById('previewDownloadBtn');
+    if (modal && img && dlBtn) {
+      img.src = src;
+      dlBtn.href = src;
+      dlBtn.download = src.split('/').pop();
+      modal.classList.remove('hidden');
+    }
+    return;
+  }
+
+  // Handle image preview close
+  const closePreviewBtn = e.target.closest('#closePreviewModalBtn');
+  if (closePreviewBtn) {
+    const modal = document.getElementById('imagePreviewModal');
+    const img = document.getElementById('previewModalImg');
+    if (modal) modal.classList.add('hidden');
+    if (img) img.src = '';
+    return;
+  }
+
+  // Handle click outside modal
+  if (e.target.id === 'imagePreviewModal') {
+    e.target.classList.add('hidden');
+    const img = document.getElementById('previewModalImg');
+    if (img) img.src = '';
+    return;
+  }
+
   // Handle SPA links
   const link = e.target.closest('[data-spa]');
   if (!link) return;

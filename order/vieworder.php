@@ -68,7 +68,9 @@ else:
 
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
       <h3 class="font-semibold text-gray-900 mb-4">Items</h3>
-      <div class="overflow-x-auto">
+
+      <!-- Desktop table (md and above) -->
+      <div class="hidden md:block overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
             <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-100">
@@ -102,6 +104,37 @@ else:
           </tbody>
         </table>
       </div>
+
+      <!-- Mobile cards (below md) -->
+      <div class="md:hidden space-y-3">
+        <?php foreach ($items as $item): ?>
+        <div class="rounded-lg border border-gray-100 bg-gray-50 p-4 space-y-2 text-sm">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-gray-800"><?= h($item['product_name']) ?></span>
+            <?php if ($item['item_image']): ?>
+              <button type="button" data-preview-src="../<?= h($item['item_image']) ?>" class="inline-flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 rounded text-xs font-medium shadow-sm"><i class="ti ti-photo"></i> Preview</button>
+            <?php endif; ?>
+          </div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-500">
+            <span class="uppercase font-medium text-gray-400">Qty</span>
+            <span class="text-right text-gray-700 font-medium"><?= (int) $item['quantity'] ?></span>
+
+            <span class="uppercase font-medium text-gray-400">Unit Price</span>
+            <span class="text-right text-gray-700"><?= formatMoney($item['unit_price'], $order['currency']) ?></span>
+
+            <span class="uppercase font-medium text-gray-400">Unit Cost</span>
+            <span class="text-right text-gray-700"><?= formatMoney($item['unit_cost'] ?? 0, $order['currency']) ?></span>
+
+            <span class="uppercase font-medium text-gray-400">Price Total</span>
+            <span class="text-right font-semibold text-gray-800"><?= formatMoney($item['line_total'], $order['currency']) ?></span>
+
+            <span class="uppercase font-medium text-gray-400">Cost Total</span>
+            <span class="text-right font-semibold text-gray-800"><?= formatMoney($item['unit_cost'] ?? 0, $order['currency']) ?></span>
+          </div>
+        </div>
+        <?php endforeach; ?>
+      </div>
+
     </div>
 
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
@@ -179,46 +212,6 @@ else:
     </div>
   </div>
 </div>
-
-<script>
-(function () {
-  var modal   = document.getElementById('imagePreviewModal');
-  var img     = document.getElementById('previewModalImg');
-  var dlBtn   = document.getElementById('previewDownloadBtn');
-  var closeBtn = document.getElementById('closePreviewModalBtn');
-  if (!modal) return;
-
-  function openModal(src) {
-    img.src     = src;
-    dlBtn.href  = src;
-    dlBtn.download = src.split('/').pop();
-    modal.classList.remove('hidden');
-  }
-
-  function closeModal() {
-    modal.classList.add('hidden');
-    img.src = '';
-  }
-
-  // Close button
-  closeBtn.addEventListener('click', closeModal);
-
-  // Click outside modal box to close
-  modal.addEventListener('click', function (e) {
-    if (e.target === modal) closeModal();
-  });
-
-  // Delegate clicks on all preview buttons (data-preview-src)
-  document.addEventListener('click', function (e) {
-    var btn = e.target.closest('[data-preview-src]');
-    if (btn) openModal(btn.dataset.previewSrc);
-  });
-
-  // Also expose globally in case anything else calls it
-  window.openPreviewModal  = openModal;
-  window.closePreviewModal = closeModal;
-})();
-</script>
 
 <?php endif; ?>
 
